@@ -67,13 +67,20 @@ export async function requireAuth(): Promise<AuthUser> {
     });
   }
 
-  // Optional: update last_login_at
-  await pool.query(`UPDATE auth."user" SET last_login_at = now() WHERE sis_user_id = $1`, [u.sis_user_id]);
+  // Optional: update last_login_at (best effort; do not fail auth if DB role is read-only)
+  try {
+    await pool.query(`UPDATE auth."user" SET last_login_at = now() WHERE sis_user_id = $1`, [u.sis_user_id]);
+  } catch (e) {
+    console.warn("Auth warning: unable to update last_login_at", {
+      sis_user_id: u.sis_user_id,
+      error: e,
+    });
+  }
 
   return {
     sis_user_id: u.sis_user_id,
     email: u.email,
     display_name: u.display_name,
-    is_admin: u.is_admin,
+    is_admin: Boolean(u.is_admin),
   };
 }
