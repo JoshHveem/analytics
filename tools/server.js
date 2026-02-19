@@ -37,10 +37,29 @@ const pool = new Pool({
   });
 
   // --- Auth middleware (reads headers set by nginx/oauth2-proxy) ---
+  // Development override: when SKIP_AUTH=true, allow requests
   app.use(async (req, res, next) => {
     try {
+      // Dev-only bypass
+      let emailRaw = req.get('X-Email') || '';
+      if (
+        emailRaw == '' &&
+        process.env.SKIP_AUTH === 'true' &&
+        process.env.NODE_ENV !== 'production'
+      ) {
+        // Ensure request originates from localhost (covers IPv4/IPv6 and proxied ::ffff addresses)
+        const ip = req.ip || (req.connection && req.connection.remoteAddress) || '';
+        const isLocal = ip === '127.0.0.1' || ip === '::1' || ip.startsWith('::ffff:127.0.0.1');
+        if (!isLocal) {
+          return res.status(403).json({ error: 'Forbidden: dev-only from localhost' });
+        }
+
+
+        emailRaw = process.env.DEV_EMAIL;
+
+      }
+
       // Never trust client-sent headers unless nginx/oauth2-proxy is stripping/setting them.
-      const emailRaw = req.get('X-Email') || '';
       const email = emailRaw.trim().toLowerCase();
 
       if (!email) {
