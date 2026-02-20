@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ReportHeader } from "../_components/ReportHeader";
 import { ReportTable, type ReportTableColumn } from "../_components/ReportTable";
@@ -218,7 +218,7 @@ function studentDisplayName(student: StudentRow): string {
   return `SIS ${student.sis_user_id}`;
 }
 
-export default function ProgramExitStatusPage() {
+function ProgramExitStatusPageInner() {
   const searchParams = useSearchParams();
   const [reportTitle, setReportTitle] = useState("Loading...");
   const [reportDescription, setReportDescription] = useState<string | null>(null);
@@ -805,5 +805,22 @@ export default function ProgramExitStatusPage() {
         </ReportContainer>
       )}
     </div>
+  );
+}
+
+export default function ProgramExitStatusPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto w-full max-w-5xl">
+          <ReportHeader title="Yearly Completers" description={null} />
+          <ReportContainer className="mt-5">
+            <div className="text-sm" style={{ color: "var(--app-text-muted)" }}>Loading...</div>
+          </ReportContainer>
+        </div>
+      }
+    >
+      <ProgramExitStatusPageInner />
+    </Suspense>
   );
 }
