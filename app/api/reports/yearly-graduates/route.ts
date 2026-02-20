@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { type Queryable } from "@/lib/db";
-import { HttpError, type AuthUser } from "@/lib/auth";
-import { withAuthedDb } from "@/lib/authed-db";
+import { HttpError } from "@/lib/auth";
+import { withSecureReport } from "@/lib/secure-report";
 
 type ProgramOption = {
   program_code: string;
@@ -12,44 +12,14 @@ function parseBool(value: string | null): boolean {
   return value === "1" || value === "true";
 }
 
-async function assertAuthedContext(db: Queryable, user: AuthUser) {
-  const { rows } = await db.query(
-    `
-    SELECT
-      current_setting('app.sis_user_id', true) AS app_sis_user_id,
-      current_setting('app.is_admin', true) AS app_is_admin
-    `
-  );
-  const appSisUserId = String(rows[0]?.app_sis_user_id ?? "").trim();
-  const appIsAdmin = String(rows[0]?.app_is_admin ?? "").trim() === "true";
-
-  if (!appSisUserId) {
-    throw new HttpError(500, { error: "RLS context missing: app.sis_user_id is not set" });
-  }
-
-  if (appSisUserId !== String(user.sis_user_id)) {
-    throw new HttpError(500, {
-      error: "RLS context mismatch: app.sis_user_id does not match authenticated user",
-    });
-  }
-
-  if (appIsAdmin !== Boolean(user.is_admin)) {
-    throw new HttpError(500, {
-      error: "RLS context mismatch: app.is_admin does not match authenticated user",
-    });
-  }
-}
-
-async function getYears(db: Queryable, user: AuthUser) {
-  await assertAuthedContext(db, user);
+async function getYears(db: Queryable) {
   const { rows } = await db.query(
     `SELECT DISTINCT academic_year FROM student_exit_status ORDER BY academic_year DESC`
   );
   return rows.map((r: { academic_year: string | number }) => String(r.academic_year));
 }
 
-async function getPrograms(db: Queryable, user: AuthUser, academicYear: string | null) {
-  await assertAuthedContext(db, user);
+async function getPrograms(db: Queryable, academicYear: string | null) {
   const params: string[] = [];
   const whereClause = academicYear ? `WHERE s.academic_year = $1` : "";
   if (academicYear) {
@@ -76,11 +46,9 @@ async function getPrograms(db: Queryable, user: AuthUser, academicYear: string |
 
 async function getCampuses(
   db: Queryable,
-  user: AuthUser,
   academicYear: string | null,
   programCode: string | null
 ) {
-  await assertAuthedContext(db, user);
   if (!programCode) {
     return [];
   }
@@ -108,12 +76,10 @@ async function getCampuses(
 
 async function getReportRows(
   db: Queryable,
-  user: AuthUser,
   programCode: string,
   campus: string,
   academicYear: string
 ) {
-  await assertAuthedContext(db, user);
   const columnCheck = await db.query(
     `
     SELECT 1
@@ -201,9 +167,7 @@ export async function GET(request: Request) {
     const requestedAcademicYear = url.searchParams.get("academic_year");
     const includeMeta = parseBool(url.searchParams.get("include_meta"));
     const includeRows = parseBool(url.searchParams.get("include_rows"));
-
-    const payload = await withAuthedDb(async ({ db, user }) => {
-        await assertAuthedContext(db, user);
+    const payload = await withSecureReport(request, "yearly-graduates", async ({ db, anonymizeRows, meta }) => {
         if (!includeMeta && !requestedProgramCode && !requestedCampus && !requestedAcademicYear) {
           const fiscalCutoff = "2026-07-01";
           const { rows } = await db.query(
@@ -229,24 +193,30 @@ export async function GET(request: Request) {
         }
 
         if (includeMeta) {
-          const years = await getYears(db, user);
+          const years = await getYears(db);
           const selectedAcademicYear = requestedAcademicYear && years.includes(requestedAcademicYear)
             ? requestedAcademicYear
             : years[0] ?? null;
 
-          const programs = await getPrograms(db, user, selectedAcademicYear);
+          const programs = await getPrograms(db, selectedAcademicYear);
           const selectedProgramCode = requestedProgramCode && programs.some((p) => p.program_code === requestedProgramCode)
             ? requestedProgramCode
             : programs[0]?.program_code ?? null;
 
-          const campuses = await getCampuses(db, user, selectedAcademicYear, selectedProgramCode);
+          const campuses = await getCampuses(db, selectedAcademicYear, selectedProgramCode);
           const selectedCampus = requestedCampus && campuses.includes(requestedCampus)
             ? requestedCampus
             : campuses[0] ?? null;
 
           let rows: any[] = [];
           if (includeRows && selectedProgramCode && selectedCampus && selectedAcademicYear) {
-            rows = await getReportRows(db, user, selectedProgramCode, selectedCampus, selectedAcademicYear);
+            const rawRows = await getReportRows(
+              db,
+              selectedProgramCode,
+              selectedCampus,
+              selectedAcademicYear
+            );
+            rows = anonymizeRows(rawRows as Record<string, unknown>[]);
           }
 
           return {
@@ -257,6 +227,7 @@ export async function GET(request: Request) {
               years,
               programs,
               campuses,
+              ...meta,
               selected: {
                 academic_year: selectedAcademicYear,
                 program_code: selectedProgramCode,
@@ -270,7 +241,8 @@ export async function GET(request: Request) {
           throw new HttpError(400, { error: "Missing required query parameters: program_code, campus, academic_year" });
         }
 
-        const rows = await getReportRows(db, user, requestedProgramCode, requestedCampus, requestedAcademicYear);
+        const rawRows = await getReportRows(db, requestedProgramCode, requestedCampus, requestedAcademicYear);
+        const rows = anonymizeRows(rawRows as Record<string, unknown>[]);
         return { ok: true, count: rows.length, data: rows };
       });
 

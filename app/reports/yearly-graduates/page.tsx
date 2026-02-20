@@ -1,6 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { ReportHeader } from "../_components/ReportHeader";
+import { ReportTable, type ReportTableColumn } from "../_components/ReportTable";
+import { ReportContainer } from "../_components/ReportContainer";
+import { MetaChip } from "../_components/MetaChip";
+import { ReportErrorBanner } from "../_components/ReportErrorBanner";
+import { APP_COLORS, withAlpha } from "@/lib/color-palette";
 
 type StudentRow = {
   sis_user_id: string;
@@ -42,24 +49,38 @@ type ExitStatusResponse = {
   error?: string;
 };
 
-type Bucket = "green" | "yellow" | "orange" | "red" | "none";
-
-const COLORS = {
-  green: "#16a34a",
-  yellow: "#eab308",
-  orange: "#f97316",
-  red: "#dc2626",
-  gray: "#a3a3a3",
-  darkGray: "#525252",
-  black: "#0a0a0a",
-  white: "#ffffff",
+type ReportConfigResponse = {
+  ok: boolean;
+  config?: {
+    title: string;
+    description: string | null;
+    filters: Array<{
+      filter_code: string;
+      type: string;
+      default_value: string | null;
+      label: string;
+      description: string | null;
+    }>;
+  };
+  error?: string;
 };
+
+type Bucket = "green" | "yellow" | "orange" | "red" | "none";
 
 const BUCKET_THRESHOLDS = {
   green: 0.75,
   yellow: 0.55,
   orange: 0.35,
 };
+
+const CHANCE_STANDARD = 0.9;
+
+function getAnonymizeEnabled(): boolean {
+  if (typeof document === "undefined") {
+    return false;
+  }
+  return document.documentElement.getAttribute("data-anonymize") === "1";
+}
 
 function clampChance(chance: number | string | null | undefined): number | null {
   if (chance === null || chance === undefined || chance === "") {
@@ -94,38 +115,6 @@ function chanceBucket(chance: number | string | null): Bucket {
   return "red";
 }
 
-function bucketLabel(bucket: Bucket): string {
-  if (bucket === "green") {
-    return "Likely graduate this year";
-  }
-  if (bucket === "yellow") {
-    return "Possible graduate this year";
-  }
-  if (bucket === "orange") {
-    return "Unlikely this year";
-  }
-  if (bucket === "red") {
-    return "Very unlikely this year";
-  }
-  return "No likelihood score";
-}
-
-function bucketColor(bucket: Bucket): string {
-  if (bucket === "green") {
-    return COLORS.green;
-  }
-  if (bucket === "yellow") {
-    return COLORS.yellow;
-  }
-  if (bucket === "orange") {
-    return COLORS.orange;
-  }
-  if (bucket === "red") {
-    return COLORS.red;
-  }
-  return COLORS.gray;
-}
-
 function percentText(value: number | null, digits = 1): string {
   if (!Number.isFinite(value)) {
     return "n/a";
@@ -144,20 +133,69 @@ function dateText(value: string | null): string {
   return d.toISOString().slice(0, 10);
 }
 
-function ratePillClasses(rate: number | null, minimumRate: number): string {
+function dateSortValue(value: string | null): number | null {
+  if (!value) {
+    return null;
+  }
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : null;
+}
+
+function endDatePillStyle(args: {
+  lockedIn: boolean;
+  lockedOutcome?: "success" | "failure";
+  chance?: number | string | null;
+}): { borderColor: string; backgroundColor: string; color: string } {
+  const greenStyle = {
+    borderColor: APP_COLORS.greenDark,
+    backgroundColor: withAlpha(APP_COLORS.green, 0.2),
+    color: "var(--app-text-strong)",
+  };
+  const grayStyle = {
+    borderColor: APP_COLORS.darkGray,
+    backgroundColor: withAlpha(APP_COLORS.lightGray, 0.5),
+    color: "var(--app-text-strong)",
+  };
+  if (args.lockedIn) {
+    if (args.lockedOutcome === "failure") {
+      return grayStyle;
+    }
+    return greenStyle;
+  }
+
+  const chance = clampChance(args.chance ?? null);
+  if (chance !== null && chance >= CHANCE_STANDARD) {
+    return greenStyle;
+  }
+  return {
+    borderColor: APP_COLORS.yellowDark,
+    backgroundColor: withAlpha(APP_COLORS.yellow, 0.2),
+    color: "var(--app-text-strong)",
+  };
+}
+
+function barColorForChance(chance: number | string | null | undefined): string {
+  const value = clampChance(chance);
+  if (value !== null && value >= CHANCE_STANDARD) {
+    return APP_COLORS.green;
+  }
+  return APP_COLORS.yellow;
+}
+
+function ratePillStyle(rate: number | null, minimumRate: number): { backgroundColor: string; color: string } {
   const yellowMin = minimumRate;
   const greenMin = Math.min(1, minimumRate + 0.05);
 
   if (!Number.isFinite(rate)) {
-    return "bg-zinc-300 text-zinc-900";
+    return { backgroundColor: APP_COLORS.gray, color: "var(--app-text-strong)" };
   }
   if ((rate as number) > greenMin) {
-    return "bg-green-600 text-white";
+    return { backgroundColor: APP_COLORS.greenDark, color: APP_COLORS.white };
   }
   if ((rate as number) >= yellowMin) {
-    return "bg-yellow-400 text-zinc-900";
+    return { backgroundColor: APP_COLORS.yellow, color: "var(--app-text-strong)" };
   }
-  return "bg-red-600 text-white";
+  return { backgroundColor: APP_COLORS.redDark, color: APP_COLORS.white };
 }
 
 function studentChance(student: StudentRow): number | string | null {
@@ -180,6 +218,9 @@ function studentDisplayName(student: StudentRow): string {
 }
 
 export default function ProgramExitStatusPage() {
+  const searchParams = useSearchParams();
+  const [reportTitle, setReportTitle] = useState("Loading...");
+  const [reportDescription, setReportDescription] = useState<string | null>(null);
   const [programCode, setProgramCode] = useState("");
   const [campus, setCampus] = useState("");
   const [academicYear, setAcademicYear] = useState("");
@@ -187,12 +228,10 @@ export default function ProgramExitStatusPage() {
   const [programs, setPrograms] = useState<ProgramOption[]>([]);
   const [campuses, setCampuses] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingMeta, setLoadingMeta] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<StudentRow[] | null>(null);
   const [whatIfDrops, setWhatIfDrops] = useState(0);
   const [minimumRate, setMinimumRate] = useState(0.5);
-  const isBusy = loading || loadingMeta;
   const [isDraggingTarget, setIsDraggingTarget] = useState(false);
   const barRef = useRef<HTMLDivElement | null>(null);
 
@@ -209,6 +248,7 @@ export default function ProgramExitStatusPage() {
     const params = new URLSearchParams({
       include_meta: "1",
       include_rows: options.includeRows ? "1" : "0",
+      anonymize: getAnonymizeEnabled() ? "1" : "0",
     });
 
     if (ay) {
@@ -244,29 +284,57 @@ export default function ProgramExitStatusPage() {
   }
 
   useEffect(() => {
-    void fetchReport();
+    void fetchReportConfig();
   }, []);
 
-  async function fetchReport(options?: {
-    nextAcademicYear?: string;
-    nextProgramCode?: string;
-    nextCampus?: string;
-  }) {
+  useEffect(() => {
+    void fetchReport();
+  }, [searchParams]);
+
+  useEffect(() => {
+    function onAnonymizeChange() {
+      void fetchReport();
+    }
+
+    window.addEventListener("analytics:anonymize-change", onAnonymizeChange);
+    return () => {
+      window.removeEventListener("analytics:anonymize-change", onAnonymizeChange);
+    };
+  }, [searchParams]);
+
+  async function fetchReportConfig() {
+    try {
+      const res = await fetch("/api/reports/config?route=yearly-graduates");
+      const json = (await res.json()) as ReportConfigResponse;
+      if (!res.ok) {
+        throw new Error(json.error || "Request failed");
+      }
+      if (json.config) {
+        setReportTitle(String(json.config.title ?? reportTitle));
+        setReportDescription(json.config.description ?? null);
+      }
+    } catch {
+      // Keep static fallback title/filters on metadata load failures.
+    }
+  }
+
+  async function fetchReport() {
     setError(null);
     setLoading(true);
-    setLoadingMeta(true);
     setRows(null);
     try {
+      const nextAcademicYear = searchParams.get("academic_year") ?? undefined;
+      const nextProgramCode = searchParams.get("program_code") ?? undefined;
+      const nextCampus = searchParams.get("campus") ?? undefined;
       await fetchPayload({
         includeRows: true,
-        nextAcademicYear: options?.nextAcademicYear,
-        nextProgramCode: options?.nextProgramCode,
-        nextCampus: options?.nextCampus,
+        nextAcademicYear,
+        nextProgramCode,
+        nextCampus,
       });
     } catch (e: unknown) {
       setError(String(e));
     } finally {
-      setLoadingMeta(false);
       setLoading(false);
     }
   }
@@ -354,25 +422,26 @@ export default function ProgramExitStatusPage() {
     for (const s of metrics.graduates) {
       segments.push({
         key: `grad-${s.sis_user_id}`,
-        color: bucketColor("green"),
+        color: APP_COLORS.green,
         opacity: 0.35,
         title: `${s.sis_user_id}: Graduated`,
       });
     }
 
     for (const c of metrics.chosenForTarget) {
+      const isHighChance = clampChance(studentChance(c.student)) !== null && (clampChance(studentChance(c.student)) as number) >= CHANCE_STANDARD;
       segments.push({
         key: `cand-${c.student.sis_user_id}`,
-        color: bucketColor(c.bucket),
+        color: barColorForChance(studentChance(c.student)),
         opacity: 1,
-        title: `${c.student.sis_user_id}: ${bucketLabel(c.bucket)}`,
+        title: `${c.student.sis_user_id}: ${isHighChance ? "90%+ likelihood" : "Below 90% likelihood"}`,
       });
     }
 
     for (const s of metrics.nonGraduates) {
       segments.push({
         key: `nongrad-${s.sis_user_id}`,
-        color: COLORS.gray,
+        color: APP_COLORS.gray,
         opacity: 1,
         title: `${s.sis_user_id}: Did not graduate`,
       });
@@ -381,7 +450,7 @@ export default function ProgramExitStatusPage() {
     for (let i = 0; i < whatIfDrops; i += 1) {
       segments.push({
         key: `drop-${i}`,
-        color: COLORS.darkGray,
+        color: APP_COLORS.darkGray,
         opacity: 1,
         title: "What-if non-graduate exiter",
       });
@@ -389,6 +458,129 @@ export default function ProgramExitStatusPage() {
 
     return segments;
   }, [metrics, whatIfDrops]);
+
+  const activeStudentColumns = useMemo<ReportTableColumn<StudentRow>[]>(() => {
+    return [
+      {
+        id: "name",
+        header: "Name",
+        columnType: "custom",
+        sortValue: (row) => studentDisplayName(row),
+        headerClassName: "w-72",
+        cellClassName: "w-72",
+        render: (row) => studentDisplayName(row),
+      },
+      {
+        id: "sis_user_id",
+        header: "SIS User",
+        accessor: "sis_user_id",
+        columnType: "text",
+        headerClassName: "w-36",
+        cellClassName: "w-36",
+      },
+      {
+        id: "end_date",
+        header: "End Date",
+        columnType: "custom",
+        sortValue: (row) => dateSortValue(row.projected_exit_date),
+        headerClassName: "w-44",
+        cellClassName: "w-44",
+        render: (row) => {
+          const text = dateText(row.projected_exit_date);
+          return (
+            <span
+              className="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium"
+              style={endDatePillStyle({ lockedIn: false, chance: studentChance(row) })}
+            >
+              {text}
+            </span>
+          );
+        },
+      },
+    ];
+  }, []);
+
+  const exitedGraduateColumns = useMemo<ReportTableColumn<StudentRow>[]>(() => {
+    return [
+      {
+        id: "name",
+        header: "Name",
+        columnType: "custom",
+        sortValue: (row) => studentDisplayName(row),
+        headerClassName: "w-72",
+        cellClassName: "w-72",
+        render: (row) => studentDisplayName(row),
+      },
+      {
+        id: "sis_user_id",
+        header: "SIS User",
+        accessor: "sis_user_id",
+        columnType: "text",
+        headerClassName: "w-36",
+        cellClassName: "w-36",
+      },
+      {
+        id: "end_date",
+        header: "End Date",
+        columnType: "custom",
+        sortValue: (row) => dateSortValue(row.exit_date),
+        headerClassName: "w-44",
+        cellClassName: "w-44",
+        render: (row) => {
+          const text = dateText(row.exit_date);
+          return (
+            <span
+              className="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium"
+              style={endDatePillStyle({ lockedIn: true, lockedOutcome: "success" })}
+            >
+              {text}
+            </span>
+          );
+        },
+      },
+    ];
+  }, []);
+
+  const exitedNonGraduateColumns = useMemo<ReportTableColumn<StudentRow>[]>(() => {
+    return [
+      {
+        id: "name",
+        header: "Name",
+        columnType: "custom",
+        sortValue: (row) => studentDisplayName(row),
+        headerClassName: "w-72",
+        cellClassName: "w-72",
+        render: (row) => studentDisplayName(row),
+      },
+      {
+        id: "sis_user_id",
+        header: "SIS User",
+        accessor: "sis_user_id",
+        columnType: "text",
+        headerClassName: "w-36",
+        cellClassName: "w-36",
+      },
+      {
+        id: "end_date",
+        header: "End Date",
+        columnType: "custom",
+        sortValue: (row) => dateSortValue(row.exit_date),
+        headerClassName: "w-44",
+        cellClassName: "w-44",
+        render: (row) => {
+          const text = dateText(row.exit_date);
+          return (
+            <span
+              className="inline-flex rounded-full border px-2 py-0.5 text-xs font-medium"
+              style={endDatePillStyle({ lockedIn: true, lockedOutcome: "failure" })}
+            >
+              {text}
+            </span>
+          );
+        },
+      },
+    ];
+  }, []);
 
   function setMinimumRateFromClientX(clientX: number) {
     const bar = barRef.current;
@@ -444,132 +636,30 @@ export default function ProgramExitStatusPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <h1 className="text-2xl font-bold">Program Yearly Graduates Report</h1>
+      <ReportHeader title={reportTitle} description={reportDescription} />
 
-      <div className={`mt-4 flex flex-wrap gap-3 transition-opacity ${isBusy ? "opacity-60" : "opacity-100"}`}>
-        <label className="flex flex-col text-sm">
-          Program
-          {programs.length > 0 ? (
-            <select
-              value={programCode}
-              onChange={(e) => {
-                const nextProgram = e.target.value;
-                setProgramCode(nextProgram);
-                setRows(null);
-                setWhatIfDrops(0);
-                void fetchReport({
-                  nextAcademicYear: academicYear,
-                  nextProgramCode: nextProgram,
-                  nextCampus: "",
-                });
-              }}
-              className="mt-1 rounded border px-2 py-1"
-              disabled={isBusy}
-            >
-              {programs.map((p) => (
-                <option key={p.program_code} value={p.program_code}>
-                  {p.program_name}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              value={programCode}
-              onChange={(e) => setProgramCode(e.target.value)}
-              className="mt-1 rounded border px-2 py-1"
-              disabled={isBusy}
-            />
-          )}
-        </label>
-
-        <label className="flex flex-col text-sm">
-          Campus
-          {campuses.length > 0 ? (
-            <select
-              value={campus}
-              onChange={(e) => {
-                const nextCampus = e.target.value;
-                setCampus(nextCampus);
-                setRows(null);
-                setWhatIfDrops(0);
-                void fetchReport({
-                  nextAcademicYear: academicYear,
-                  nextProgramCode: programCode,
-                  nextCampus,
-                });
-              }}
-              className="mt-1 rounded border px-2 py-1"
-              disabled={isBusy}
-            >
-              {campuses.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              value={campus}
-              onChange={(e) => setCampus(e.target.value)}
-              className="mt-1 rounded border px-2 py-1"
-              disabled={isBusy}
-            />
-          )}
-        </label>
-
-        <label className="flex flex-col text-sm">
-          Academic year
-          {years.length > 0 ? (
-            <select
-              value={academicYear}
-              onChange={(e) => {
-                const nextYear = e.target.value;
-                setAcademicYear(nextYear);
-                setRows(null);
-                setWhatIfDrops(0);
-                void fetchReport({
-                  nextAcademicYear: nextYear,
-                  nextProgramCode: programCode,
-                  nextCampus: "",
-                });
-              }}
-              className="mt-1 rounded border px-2 py-1"
-              disabled={isBusy}
-            >
-              {years.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              value={academicYear}
-              onChange={(e) => setAcademicYear(e.target.value)}
-              className="mt-1 rounded border px-2 py-1"
-              disabled={isBusy}
-            />
-          )}
-        </label>
-
-      </div>
-
-      {error && <div className="mt-4 text-red-600">Error: {error}</div>}
+      {error && <ReportErrorBanner className="mt-4" message={error} />}
 
       {rows && (
-        <div className="mt-5 rounded-lg border border-zinc-200 bg-white p-4">
+        <ReportContainer className="mt-5">
           <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
             <span>Current Graduation Rate:</span>
-            <span className={`rounded-full px-2 py-1 text-xs font-semibold ${ratePillClasses(metrics.currentRate, minimumRate)}`}>
+            <span
+              className="rounded-full px-2 py-1 text-xs font-semibold"
+              style={ratePillStyle(metrics.currentRate, minimumRate)}
+            >
               {percentText(metrics.currentRate, 0)}
             </span>
             <span className="ml-2">Projected:</span>
-            <span className={`rounded-full px-2 py-1 text-xs font-semibold ${ratePillClasses(metrics.projectedRate, minimumRate)}`}>
+            <span
+              className="rounded-full px-2 py-1 text-xs font-semibold"
+              style={ratePillStyle(metrics.projectedRate, minimumRate)}
+            >
               {percentText(metrics.projectedRate, 1)}
             </span>
-            <span className="ml-2 rounded-full bg-zinc-100 px-2 py-1 text-xs">
+            <MetaChip className="ml-2">
               Minimum: {percentText(minimumRate, 0)}
-            </span>
+            </MetaChip>
           </div>
 
           <div className="mb-6 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
@@ -577,8 +667,8 @@ export default function ProgramExitStatusPage() {
               <div className="relative h-5">
                 <div
                   ref={barRef}
-                  className="h-5 select-none touch-none overflow-hidden rounded-full bg-zinc-100"
-                  style={{ cursor: isDraggingTarget ? "grabbing" : "grab" }}
+                  className="h-5 select-none touch-none overflow-hidden rounded-full"
+                  style={{ cursor: isDraggingTarget ? "grabbing" : "grab", backgroundColor: "var(--app-surface-muted)" }}
                   onPointerDown={(e) => {
                     setMinimumRateFromClientX(e.clientX);
                     setIsDraggingTarget(true);
@@ -601,8 +691,13 @@ export default function ProgramExitStatusPage() {
                   </div>
                 </div>
                 <div
-                  className="pointer-events-auto absolute top-0 z-30 h-5 w-[3px] bg-zinc-900"
-                  style={{ cursor: isDraggingTarget ? "grabbing" : "grab", left: progressLinePercent, transform: "translateX(-50%)" }}
+                  className="pointer-events-auto absolute top-0 z-30 h-5 w-[3px]"
+                  style={{
+                    cursor: isDraggingTarget ? "grabbing" : "grab",
+                    left: progressLinePercent,
+                    transform: "translateX(-50%)",
+                    backgroundColor: "var(--app-text-strong)",
+                  }}
                   title={`${Math.round(minimumRate * 100)}% requirement`}
                   onPointerDown={(e) => {
                     e.stopPropagation();
@@ -611,12 +706,12 @@ export default function ProgramExitStatusPage() {
                 />
               </div>
               <span
-                className="absolute z-20 h-3 w-3 rounded-full border border-zinc-700 bg-white shadow-sm"
+                className="absolute z-20 h-3 w-3"
                 style={{ left: progressLinePercent, height: "100%", top: "0rem", transform: "translateX(-50%)" }}
               />
               <span
-                className="absolute top-8 z-10 select-none bg-white px-1 text-[10px] font-semibold text-zinc-700"
-                style={{ left: progressLinePercent, transform: "translateX(-50%)" }}
+                className="absolute top-8 z-10 select-none px-1 text-[10px] font-semibold"
+                style={{ left: progressLinePercent, transform: "translateX(-50%)", backgroundColor: "var(--app-surface)", color: "var(--app-text-muted)" }}
               >
                 {Math.round(minimumRate * 100)}%
               </span>
@@ -626,7 +721,8 @@ export default function ProgramExitStatusPage() {
               <span>What-if drop:</span>
               <button
                 type="button"
-                className="h-6 w-6 rounded border border-zinc-300 bg-white text-sm"
+                className="h-6 w-6 rounded border text-sm"
+                style={{ borderColor: "var(--app-border)", backgroundColor: "var(--app-surface)", color: "var(--app-text-strong)" }}
                 onClick={() => setWhatIfDrops((n) => Math.max(0, n - 1))}
                 disabled={whatIfDrops <= 0}
               >
@@ -635,7 +731,8 @@ export default function ProgramExitStatusPage() {
               <b className="min-w-6 text-center">{whatIfDrops}</b>
               <button
                 type="button"
-                className="h-6 w-6 rounded border border-zinc-300 bg-white text-sm"
+                className="h-6 w-6 rounded border text-sm"
+                style={{ borderColor: "var(--app-border)", backgroundColor: "var(--app-surface)", color: "var(--app-text-strong)" }}
                 onClick={() => setWhatIfDrops((n) => n + 1)}
               >
                 +
@@ -645,118 +742,66 @@ export default function ProgramExitStatusPage() {
 
           <div className="mb-2 flex items-center justify-between">
             <h4 className="text-sm font-semibold">Active students</h4>
-            <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs">Rows: {activeRows.length}</span>
+            <MetaChip>Rows: {activeRows.length}</MetaChip>
           </div>
-          <div className="overflow-auto">
-            <table className="w-full table-fixed border-collapse text-sm">
-              <colgroup>
-                <col className="w-16" />
-                <col className="w-64" />
-                <col className="w-32" />
-                <col className="w-36" />
-              </colgroup>
-              <thead>
-                <tr className="text-left">
-                  <th className="border-b p-2">Status</th>
-                  <th className="border-b p-2">Name</th>
-                  <th className="border-b p-2">SIS User</th>
-                  <th className="border-b p-2">End Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeRows.map((r, i) => {
-                  const chance = studentChance(r);
-                  const bucket = chanceBucket(chance);
-                  return (
-                    <tr key={`${r.sis_user_id}-${i}`} className="odd:bg-zinc-50">
-                      <td className="p-2">
-                        <span
-                          title={bucketLabel(bucket)}
-                          className="inline-block h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: bucketColor(bucket) }}
-                        />
-                      </td>
-                      <td className="p-2">{studentDisplayName(r)}</td>
-                      <td className="p-2">{r.sis_user_id}</td>
-                      <td className="p-2">{dateText(r.projected_exit_date)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <ReportTable
+            rows={activeRows}
+            columns={activeStudentColumns}
+            defaultSort={{ columnId: "end_date", direction: "asc" }}
+            rowKey={(row, index) => `${row.sis_user_id}-${index}`}
+            emptyText="No active students found."
+          />
 
           <div className="mb-2 mt-5 flex items-center justify-between">
             <h4 className="text-sm font-semibold">Exited students</h4>
-            <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs">Rows: {finishedRows.length}</span>
+            <MetaChip>Rows: {finishedRows.length}</MetaChip>
           </div>
-          <div className="overflow-auto">
-            <table className="w-full table-fixed border-collapse text-sm">
-              <colgroup>
-                <col className="w-16" />
-                <col className="w-64" />
-                <col className="w-32" />
-                <col className="w-36" />
-              </colgroup>
-              <thead>
-                <tr className="text-left">
-                  <th className="border-b p-2">Status</th>
-                  <th className="border-b p-2">Name</th>
-                  <th className="border-b p-2">SIS User</th>
-                  <th className="border-b p-2">End Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {exitedGreenRows.length > 0 && (
-                  <tr>
-                    <td className="bg-zinc-100 p-2 text-xs font-semibold text-zinc-700" colSpan={4}>
-                      Graduates
-                    </td>
-                  </tr>
-                )}
-                {exitedGreenRows.map((r, i) => (
-                  <tr key={`green-${r.sis_user_id}-${i}`} className="odd:bg-zinc-50 opacity-80">
-                    <td className="p-2">
-                      <span
-                        title="Graduate"
-                        className="inline-block h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: bucketColor("green") }}
-                      />
-                    </td>
-                    <td className="p-2">{studentDisplayName(r)}</td>
-                    <td className="p-2">{r.sis_user_id}</td>
-                    <td className="p-2">{dateText(r.exit_date)}</td>
-                  </tr>
-                ))}
-                {exitedGrayRows.length > 0 && (
-                  <tr>
-                    <td className="bg-zinc-100 p-2 text-xs font-semibold text-zinc-700" colSpan={4}>
-                      Non-graduate Exiters 
-                    </td>
-                  </tr>
-                )}
-                {exitedGrayRows.map((r, i) => (
-                  <tr key={`gray-${r.sis_user_id}-${i}`} className="odd:bg-zinc-50 opacity-80">
-                    <td className="p-2">
-                      <span
-                        title="Non-graduate exiter"
-                        className="inline-block h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: COLORS.gray }}
-                      />
-                    </td>
-                    <td className="p-2">{studentDisplayName(r)}</td>
-                    <td className="p-2">{r.sis_user_id}</td>
-                    <td className="p-2">{dateText(r.exit_date)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-4">
+            {exitedGreenRows.length > 0 && (
+              <div>
+                <div
+                  className="border p-2 text-xs font-semibold"
+                  style={{ backgroundColor: "var(--app-surface-muted)", borderColor: "var(--app-border)", color: "var(--app-text-muted)" }}
+                >
+                  Graduates
+                </div>
+                <ReportTable
+                  rows={exitedGreenRows}
+                  columns={exitedGraduateColumns}
+                  defaultSort={{ columnId: "name", direction: "asc" }}
+                  rowKey={(row, index) => `green-${row.sis_user_id}-${index}`}
+                  rowClassName={() => "opacity-80"}
+                />
+              </div>
+            )}
+
+            {exitedGrayRows.length > 0 && (
+              <div>
+                <div
+                  className="border p-2 text-xs font-semibold"
+                  style={{ backgroundColor: "var(--app-surface-muted)", borderColor: "var(--app-border)", color: "var(--app-text-muted)" }}
+                >
+                  Non-graduate Exiters
+                </div>
+                <ReportTable
+                  rows={exitedGrayRows}
+                  columns={exitedNonGraduateColumns}
+                  defaultSort={{ columnId: "name", direction: "asc" }}
+                  rowKey={(row, index) => `gray-${row.sis_user_id}-${index}`}
+                  rowClassName={() => "opacity-80"}
+                />
+              </div>
+            )}
+
+            {exitedGreenRows.length === 0 && exitedGrayRows.length === 0 && (
+              <div className="text-sm" style={{ color: "var(--app-text-muted)" }}>No exited students found.</div>
+            )}
           </div>
 
-          <div className="mt-3 text-xs text-zinc-500">
+          <div className="mt-3 text-xs" style={{ color: "var(--app-text-muted)" }}>
             Uses `is_exited`, `is_graduate`, `projected_exit_date`, and `chance_to_graduate ?? chance_to_complete` from server data.
           </div>
-        </div>
+        </ReportContainer>
       )}
     </div>
   );
