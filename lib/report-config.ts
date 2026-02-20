@@ -6,6 +6,8 @@ export type ReportFilterConfig = {
   default_value: string | null;
   label: string;
   description: string | null;
+  table: string | null;
+  column: string | null;
 };
 
 export type ReportConfig = {
@@ -56,6 +58,8 @@ export async function getReportConfigByRoute(route: string): Promise<ReportConfi
       default_value: string | null;
       label: string | null;
       description: string | null;
+      table: string | null;
+      column: string | null;
     }>(
       `
       SELECT
@@ -63,7 +67,9 @@ export async function getReportConfigByRoute(route: string): Promise<ReportConfi
         COALESCE(rf.type, f.type, 'select') AS type,
         rf.default_value,
         f.label,
-        f.description
+        f.description,
+        f."table" AS table,
+        f."column" AS column
       FROM meta.report_filters rf
       LEFT JOIN meta.filters f
         ON f.filter_code = rf.filter_code
@@ -85,12 +91,16 @@ export async function getReportConfigByRoute(route: string): Promise<ReportConfi
         default_value: string | null;
         label: string | null;
         description: string | null;
+        table: string | null;
+        column: string | null;
       }) => ({
         filter_code: String(row.filter_code),
         type: String(row.type ?? "select"),
         default_value: row.default_value ?? null,
         label: String(row.label ?? row.filter_code),
         description: row.description ?? null,
+        table: row.table ?? null,
+        column: row.column ?? null,
       })),
     };
   });

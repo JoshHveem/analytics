@@ -13,8 +13,11 @@ type SidebarClientProps = {
 
 type ReportFilterMenuItem = {
   filter_code: string;
+  type: string;
   label: string;
   description: string | null;
+  table: string | null;
+  column: string | null;
 };
 
 type ReportConfigResponse = {
@@ -22,8 +25,11 @@ type ReportConfigResponse = {
   config?: {
     filters: Array<{
       filter_code: string;
+      type: string;
       label: string;
       description: string | null;
+      table: string | null;
+      column: string | null;
     }>;
   };
 };
@@ -40,17 +46,8 @@ type DepartmentOption = {
 
 type ReportMetaResponse = {
   ok: boolean;
-  meta?: {
-    years: string[];
-    programs: ProgramOption[];
-    campuses: string[];
-    departments: DepartmentOption[];
-    selected: {
-      academic_year: string | null;
-      program_code: string | null;
-      campus: string | null;
-      department_code: string | null;
-    };
+  meta?: Record<string, unknown> & {
+    selected?: Record<string, unknown> | null;
   };
 };
 
@@ -79,6 +76,98 @@ function filterCodeToParam(filterCode: string): string {
     return "department_code";
   }
   return filterCode;
+}
+
+function normalizeFilterType(type: string | null | undefined): "select" | "multi_select" | "text" {
+  const normalized = String(type ?? "").trim().toLowerCase();
+  if (normalized === "multi_select") {
+    return "multi_select";
+  }
+  if (normalized === "text") {
+    return "text";
+  }
+  return "select";
+}
+
+function splitMultiValue(value: string): string[] {
+  return value
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
+function normalizeMetaSourceKey(filter: ReportFilterMenuItem): string {
+  const tableName = String(filter.table ?? "").trim();
+  if (tableName) {
+    return tableName;
+  }
+
+  const param = filterCodeToParam(filter.filter_code);
+  if (param === "academic_year") {
+    return "years";
+  }
+
+  if (param.endsWith("_code")) {
+    return `${param.replace(/_code$/, "")}s`;
+  }
+
+  if (param.endsWith("y")) {
+    return `${param.slice(0, -1)}ies`;
+  }
+
+  return `${param}s`;
+}
+
+function optionsFromMetaSource(raw: unknown, valueKeyHint?: string | null): Array<{ value: string; label: string }> {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return [];
+  }
+
+  const first = raw[0];
+  if (typeof first === "string" || typeof first === "number") {
+    return raw.map((item) => {
+      const value = String(item ?? "");
+      return { value, label: value };
+    });
+  }
+
+  if (!first || typeof first !== "object") {
+    return [];
+  }
+
+  const firstRecord = first as Record<string, unknown>;
+  const valueCandidates = [
+    String(valueKeyHint ?? "").trim(),
+    "value",
+    "id",
+  ].filter((key) => key.length > 0);
+  const valueKey = valueCandidates.find((key) => key in firstRecord);
+  if (!valueKey) {
+    return [];
+  }
+
+  const labelCandidates = [
+    valueKey.replace(/_code$/, "_name"),
+    "label",
+    "name",
+    valueKey,
+  ];
+  const labelKey = labelCandidates.find((key) => key in firstRecord) ?? valueKey;
+
+  return raw
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+      const record = item as Record<string, unknown>;
+      const value = String(record[valueKey] ?? "").trim();
+      if (!value) {
+        return null;
+      }
+      const label = String(record[labelKey] ?? value).trim() || value;
+      return { value, label };
+    })
+    .filter((option): option is { value: string; label: string } => option !== null);
 }
 
 function SettingToggle({
@@ -133,16 +222,8 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
   const [filters, setFilters] = useState<ReportFilterMenuItem[]>([]);
   const [menuMode, setMenuMode] = useState<"reports" | "filters" | "settings">(reportRoute ? "filters" : "reports");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [years, setYears] = useState<string[]>([]);
-  const [programs, setPrograms] = useState<ProgramOption[]>([]);
-  const [campuses, setCampuses] = useState<string[]>([]);
-  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
-  const [selectedMeta, setSelectedMeta] = useState<{
-    academic_year: string | null;
-    program_code: string | null;
-    campus: string | null;
-    department_code: string | null;
-  }>({ academic_year: null, program_code: null, campus: null, department_code: null });
+  const [filterMeta, setFilterMeta] = useState<Record<string, unknown>>({});
+  const [selectedMeta, setSelectedMeta] = useState<Record<string, string | null>>({});
   const [loadingFilterData, setLoadingFilterData] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [anonymize, setAnonymize] = useState(false);
@@ -171,8 +252,11 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
           setFilters(
             (json.config.filters ?? []).map((f) => ({
               filter_code: String(f.filter_code),
+              type: String(f.type ?? "select"),
               label: String(f.label ?? f.filter_code),
               description: f.description ?? null,
+              table: f.table ?? null,
+              column: f.column ?? null,
             }))
           );
         }
@@ -194,11 +278,8 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
 
     async function loadFilterMeta() {
       if (!reportRoute) {
-        setYears([]);
-        setPrograms([]);
-        setCampuses([]);
-        setDepartments([]);
-        setSelectedMeta({ academic_year: null, program_code: null, campus: null, department_code: null });
+        setFilterMeta({});
+        setSelectedMeta({});
         return;
       }
 
@@ -208,55 +289,38 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
         params.set("include_meta", "1");
         params.set("include_rows", "0");
 
-        const currentYear = searchParams.get("academic_year");
-        const currentProgram = searchParams.get("program_code");
-        const currentCampus = searchParams.get("campus");
-        const currentDepartmentCode = searchParams.get("department_code");
-        if (currentYear) {
-          params.set("academic_year", currentYear);
-        }
-        if (currentProgram) {
-          params.set("program_code", currentProgram);
-        }
-        if (currentCampus) {
-          params.set("campus", currentCampus);
-        }
-        if (currentDepartmentCode) {
-          params.set("department_code", currentDepartmentCode);
+        for (const [key, value] of searchParams.entries()) {
+          if (value) {
+            params.set(key, value);
+          }
         }
 
         const res = await fetch(`/api/reports/${encodeURIComponent(reportRoute)}?${params.toString()}`);
         const json = (await res.json()) as ReportMetaResponse;
         if (!res.ok || !json.meta) {
           if (!cancelled) {
-            setYears([]);
-            setPrograms([]);
-            setCampuses([]);
-            setDepartments([]);
-            setSelectedMeta({ academic_year: null, program_code: null, campus: null, department_code: null });
+            setFilterMeta({});
+            setSelectedMeta({});
           }
           return;
         }
 
         if (!cancelled) {
-          setYears(json.meta.years ?? []);
-          setPrograms(json.meta.programs ?? []);
-          setCampuses(json.meta.campuses ?? []);
-          setDepartments(json.meta.departments ?? []);
-          setSelectedMeta({
-            academic_year: json.meta.selected.academic_year ?? null,
-            program_code: json.meta.selected.program_code ?? null,
-            campus: json.meta.selected.campus ?? null,
-            department_code: json.meta.selected.department_code ?? null,
-          });
+          setFilterMeta(json.meta);
+          const selectedRaw =
+            json.meta.selected && typeof json.meta.selected === "object"
+              ? (json.meta.selected as Record<string, unknown>)
+              : {};
+          const nextSelected: Record<string, string | null> = {};
+          for (const [key, value] of Object.entries(selectedRaw)) {
+            nextSelected[key] = value === null || value === undefined ? null : String(value);
+          }
+          setSelectedMeta(nextSelected);
         }
       } catch {
         if (!cancelled) {
-          setYears([]);
-          setPrograms([]);
-          setCampuses([]);
-          setDepartments([]);
-          setSelectedMeta({ academic_year: null, program_code: null, campus: null, department_code: null });
+          setFilterMeta({});
+          setSelectedMeta({});
         }
       } finally {
         if (!cancelled) {
@@ -390,39 +454,13 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
     if (fromQuery) {
       return fromQuery;
     }
-    if (param === "academic_year") {
-      return selectedMeta.academic_year ?? "";
-    }
-    if (param === "program_code") {
-      return selectedMeta.program_code ?? "";
-    }
-    if (param === "campus") {
-      return selectedMeta.campus ?? "";
-    }
-    if (param === "department_code") {
-      return selectedMeta.department_code ?? "";
-    }
-    return "";
+    return selectedMeta[param] ?? "";
   }
 
-  function filterOptions(filterCode: string): Array<{ value: string; label: string }> {
-    const param = filterCodeToParam(filterCode);
-    if (param === "academic_year") {
-      return years.map((year) => ({ value: year, label: year }));
-    }
-    if (param === "program_code") {
-      return programs.map((program) => ({ value: program.program_code, label: program.program_name }));
-    }
-    if (param === "campus") {
-      return campuses.map((campus) => ({ value: campus, label: campus }));
-    }
-    if (param === "department_code") {
-      return departments.map((department) => ({
-        value: department.department_code,
-        label: department.department_name,
-      }));
-    }
-    return [];
+  function filterOptions(filter: ReportFilterMenuItem): Array<{ value: string; label: string }> {
+    const sourceKey = normalizeMetaSourceKey(filter);
+    const source = filterMeta[sourceKey];
+    return optionsFromMetaSource(source, filter.column);
   }
 
   function applyFilterChange(filterCode: string, value: string) {
@@ -431,6 +469,25 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
 
     if (value) {
       params.set(param, value);
+    } else {
+      params.delete(param);
+    }
+
+    if (param === "program_code" || param === "academic_year") {
+      params.delete("campus");
+    }
+
+    const next = params.toString();
+    router.replace(next ? `${pathname}?${next}` : pathname);
+  }
+
+  function applyMultiFilterChange(filterCode: string, values: string[]) {
+    const params = new URLSearchParams(searchParams.toString());
+    const param = filterCodeToParam(filterCode);
+    const cleaned = values.map((value) => value.trim()).filter((value) => value.length > 0);
+
+    if (cleaned.length > 0) {
+      params.set(param, cleaned.join(","));
     } else {
       params.delete(param);
     }
@@ -604,9 +661,11 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
                 {filters.length > 0 && (
                   <div className={`space-y-3 ${loadingFilterData ? "opacity-60" : "opacity-100"}`}>
                     {filters.map((filter) => {
+                      const filterType = normalizeFilterType(filter.type);
                       const value = filterValue(filter.filter_code);
-                      const options = filterOptions(filter.filter_code);
+                      const options = filterOptions(filter);
                       const hasDescription = Boolean(filter.description && filter.description.trim().length > 0);
+                      const multiValue = splitMultiValue(value);
 
                       return (
                         <label key={filter.filter_code} className="relative flex flex-col text-sm">
@@ -622,7 +681,29 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
                               />
                             )}
                           </span>
-                          {options.length > 0 ? (
+                          {filterType === "multi_select" && options.length > 0 ? (
+                            <select
+                              multiple
+                              value={multiValue}
+                              onChange={(e) => {
+                                const selected = Array.from(e.currentTarget.selectedOptions).map((option) => option.value);
+                                applyMultiFilterChange(filter.filter_code, selected);
+                              }}
+                              className="mt-1 rounded border px-2 py-1"
+                              style={{
+                                borderColor: "var(--app-border)",
+                                backgroundColor: "var(--app-surface)",
+                                color: "var(--app-text-strong)",
+                              }}
+                              disabled={loadingFilterData}
+                            >
+                              {options.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : filterType === "select" && options.length > 0 ? (
                             <select
                               value={value}
                               onChange={(e) => applyFilterChange(filter.filter_code, e.target.value)}
@@ -683,3 +764,7 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
     </>
   );
 }
+
+
+
+
