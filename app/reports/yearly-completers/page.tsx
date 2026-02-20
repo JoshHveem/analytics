@@ -1,12 +1,14 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ReportHeader } from "../_components/ReportHeader";
 import { ReportTable, type ReportTableColumn } from "../_components/ReportTable";
 import { ReportContainer } from "../_components/ReportContainer";
 import { MetaChip } from "../_components/MetaChip";
 import { ReportErrorBanner } from "../_components/ReportErrorBanner";
+import { ReportPageSuspense } from "../_components/ReportPageSuspense";
+import { useReportPageData } from "../_hooks/useReportPageData";
 import { APP_COLORS, withAlpha } from "@/lib/color-palette";
 
 type StudentRow = {
@@ -50,22 +52,6 @@ type ExitStatusResponse = {
   error?: string;
 };
 
-type ReportConfigResponse = {
-  ok: boolean;
-  config?: {
-    title: string;
-    description: string | null;
-    filters: Array<{
-      filter_code: string;
-      type: string;
-      default_value: string | null;
-      label: string;
-      description: string | null;
-    }>;
-  };
-  error?: string;
-};
-
 type Bucket = "green" | "yellow" | "orange" | "red" | "none";
 
 const BUCKET_THRESHOLDS = {
@@ -75,13 +61,6 @@ const BUCKET_THRESHOLDS = {
 };
 
 const CHANCE_STANDARD = 0.9;
-
-function getAnonymizeEnabled(): boolean {
-  if (typeof document === "undefined") {
-    return false;
-  }
-  return document.documentElement.getAttribute("data-anonymize") === "1";
-}
 
 function clampChance(chance: number | string | null | undefined): number | null {
   if (chance === null || chance === undefined || chance === "") {
@@ -220,125 +199,60 @@ function studentDisplayName(student: StudentRow): string {
 
 function ProgramExitStatusPageInner() {
   const searchParams = useSearchParams();
-  const [reportTitle, setReportTitle] = useState("Loading...");
-  const [reportDescription, setReportDescription] = useState<string | null>(null);
-  const [programCode, setProgramCode] = useState("");
-  const [campus, setCampus] = useState("");
-  const [academicYear, setAcademicYear] = useState("");
-  const [years, setYears] = useState<string[]>([]);
-  const [programs, setPrograms] = useState<ProgramOption[]>([]);
-  const [campuses, setCampuses] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [rows, setRows] = useState<StudentRow[] | null>(null);
   const [whatIfDrops, setWhatIfDrops] = useState(0);
   const [minimumRate, setMinimumRate] = useState(0.6);
   const [isDraggingTarget, setIsDraggingTarget] = useState(false);
   const barRef = useRef<HTMLDivElement | null>(null);
 
-  async function fetchPayload(options: {
-    includeRows: boolean;
-    nextAcademicYear?: string;
-    nextProgramCode?: string;
-    nextCampus?: string;
-  }) {
-    const ay = options.nextAcademicYear ?? academicYear;
-    const pc = options.nextProgramCode ?? programCode;
-    const cp = options.nextCampus ?? campus;
+  const fetchRows = useCallback(
+    async ({ searchParams, anonymize }: { searchParams: URLSearchParams | Readonly<URLSearchParams>; anonymize: boolean }) => {
+      const params = new URLSearchParams({
+        include_meta: "1",
+        include_rows: "1",
+        anonymize: anonymize ? "1" : "0",
+      });
 
-    const params = new URLSearchParams({
-      include_meta: "1",
-      include_rows: options.includeRows ? "1" : "0",
-      anonymize: getAnonymizeEnabled() ? "1" : "0",
-    });
+      const ay = searchParams.get("academic_year");
+      const pc = searchParams.get("program_code");
+      const cp = searchParams.get("campus");
 
-    if (ay) {
-      params.set("academic_year", ay);
-    }
-    if (pc) {
-      params.set("program_code", pc);
-    }
-    if (cp) {
-      params.set("campus", cp);
-    }
+      if (ay) {
+        params.set("academic_year", ay);
+      }
+      if (pc) {
+        params.set("program_code", pc);
+      }
+      if (cp) {
+        params.set("campus", cp);
+      }
 
-    const res = await fetch(`/api/reports/yearly-completers?${params.toString()}`);
-    const json = (await res.json()) as ExitStatusResponse;
+      const res = await fetch(`/api/reports/yearly-completers?${params.toString()}`);
+      const json = (await res.json()) as ExitStatusResponse;
 
-    if (!res.ok) {
-      throw new Error(json.error || "Request failed");
-    }
-
-    const meta = json.meta;
-    if (meta) {
-      setYears(meta.years ?? []);
-      setPrograms(meta.programs ?? []);
-      setCampuses(meta.campuses ?? []);
-      setAcademicYear(meta.selected.academic_year ?? "");
-      setProgramCode(meta.selected.program_code ?? "");
-      setCampus(meta.selected.campus ?? "");
-    }
-
-    if (options.includeRows) {
-      setRows(Array.isArray(json.data) ? json.data : []);
-    }
-  }
-
-  useEffect(() => {
-    void fetchReportConfig();
-  }, []);
-
-  useEffect(() => {
-    void fetchReport();
-  }, [searchParams]);
-
-  useEffect(() => {
-    function onAnonymizeChange() {
-      void fetchReport();
-    }
-
-    window.addEventListener("analytics:anonymize-change", onAnonymizeChange);
-    return () => {
-      window.removeEventListener("analytics:anonymize-change", onAnonymizeChange);
-    };
-  }, [searchParams]);
-
-  async function fetchReportConfig() {
-    try {
-      const res = await fetch("/api/reports/config?route=yearly-completers");
-      const json = (await res.json()) as ReportConfigResponse;
       if (!res.ok) {
         throw new Error(json.error || "Request failed");
       }
-      if (json.config) {
-        setReportTitle(String(json.config.title ?? reportTitle));
-        setReportDescription(json.config.description ?? null);
-      }
-    } catch {
-      // Keep static fallback title/filters on metadata load failures.
-    }
-  }
 
-  async function fetchReport() {
-    setError(null);
-    setLoading(true);
-    setRows(null);
-    try {
-      const nextAcademicYear = searchParams.get("academic_year") ?? undefined;
-      const nextProgramCode = searchParams.get("program_code") ?? undefined;
-      const nextCampus = searchParams.get("campus") ?? undefined;
-      await fetchPayload({
-        includeRows: true,
-        nextAcademicYear,
-        nextProgramCode,
-        nextCampus,
-      });
-    } catch (e: unknown) {
-      setError(String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
+      const meta = json.meta;
+      if (meta) {
+        // Metadata is currently consumed by external filters UI.
+      }
+
+      return Array.isArray(json.data) ? json.data : [];
+    },
+    []
+  );
+
+  const { reportTitle, reportDescription, loading, error, rows } = useReportPageData<StudentRow>({
+    route: "yearly-completers",
+    searchParams,
+    initialTitle: "Loading...",
+    initialDescription: null,
+    initialRows: null,
+    resetRowsBeforeFetch: null,
+    rowsOnFetchError: null,
+    fetchRows,
+  });
 
   const finishedRows = useMemo(
     () => (rows ?? []).filter((r) => r.is_exited).slice().sort((a, b) => dateText(b.exit_date).localeCompare(dateText(a.exit_date))),
@@ -810,17 +724,8 @@ function ProgramExitStatusPageInner() {
 
 export default function ProgramExitStatusPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="mx-auto w-full max-w-5xl">
-          <ReportHeader title="Yearly Completers" description={null} />
-          <ReportContainer className="mt-5">
-            <div className="text-sm" style={{ color: "var(--app-text-muted)" }}>Loading...</div>
-          </ReportContainer>
-        </div>
-      }
-    >
+    <ReportPageSuspense title="Yearly Completers" maxWidthClassName="max-w-5xl">
       <ProgramExitStatusPageInner />
-    </Suspense>
+    </ReportPageSuspense>
   );
 }

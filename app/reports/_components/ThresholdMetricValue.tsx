@@ -79,9 +79,11 @@ export function ThresholdMetricValue({
   const text = formatMetricValue(value, format, fractionDigits);
 
   return (
-    <div className="flex items-center justify-between gap-2">
+    <div className="inline-flex items-center gap-2">
+      <span className="inline-flex h-3 w-3 items-center justify-center">
+        <ThresholdMarker status={status} />
+      </span>
       <span>{text}</span>
-      <ThresholdMarker status={status} />
     </div>
   );
 }

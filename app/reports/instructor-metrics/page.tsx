@@ -1,12 +1,14 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ReportHeader } from "../_components/ReportHeader";
 import { ReportTable, type ReportTableColumn } from "../_components/ReportTable";
 import { ReportContainer } from "../_components/ReportContainer";
 import { MetaChip } from "../_components/MetaChip";
 import { ReportErrorBanner } from "../_components/ReportErrorBanner";
+import { ReportPageSuspense } from "../_components/ReportPageSuspense";
+import { useReportPageData } from "../_hooks/useReportPageData";
 import { APP_COLORS, withAlpha } from "@/lib/color-palette";
 
 type InstructorMetricRow = {
@@ -14,22 +16,15 @@ type InstructorMetricRow = {
   first_name: string | null;
   last_name: string | null;
   academic_year: number | string;
-  department_code: string;
-  department_name: string | null;
+  program_code: string;
+  program_name: string | null;
   assignments_graded: number | string | null;
   average_score: number | string | null;
-  average_attempts: number | string | null;
-  comments_per_submission_graded: number | string | null;
   days_to_grade: number | string | null;
   perc_graded_with_rubric: number | string | null;
   num_replies_to_students: number | string | null;
   days_to_reply: number | string | null;
-  teacher_support_hours: number | string | null;
-};
-
-type DepartmentOption = {
-  department_code: string;
-  department_name: string;
+  credits_overseen: number | string | null;
 };
 
 type InstructorMetricsResponse = {
@@ -38,23 +33,16 @@ type InstructorMetricsResponse = {
   data: InstructorMetricRow[];
   meta?: {
     years: string[];
-    departments: DepartmentOption[];
+    programs: Array<{ program_code: string; program_name: string }>;
     selected: {
       academic_year: string | null;
-      department_code: string | null;
+      program_code: string | null;
     };
   };
   error?: string;
 };
 
-type ReportConfigResponse = {
-  ok: boolean;
-  config?: {
-    title: string;
-    description: string | null;
-  };
-  error?: string;
-};
+const EMPTY_INSTRUCTOR_ROWS: InstructorMetricRow[] = [];
 
 function toNumber(value: number | string | null | undefined): number | null {
   if (value === null || value === undefined || value === "") {
@@ -78,13 +66,6 @@ function fmtPercent(value: number | null): string {
   return `${(Number(value) * 100).toFixed(1)}%`;
 }
 
-function getAnonymizeEnabled(): boolean {
-  if (typeof document === "undefined") {
-    return false;
-  }
-  return document.documentElement.getAttribute("data-anonymize") === "1";
-}
-
 const RUBRIC_STANDARD = 0.9;
 const DAYS_TO_REPLY_STANDARD = 2;
 
@@ -105,53 +86,21 @@ function instructorDisplayName(row: InstructorMetricRow): string {
 
 function InstructorMetricsPageInner() {
   const searchParams = useSearchParams();
-  const [reportTitle, setReportTitle] = useState("Instructor Metrics");
-  const [reportDescription, setReportDescription] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [rows, setRows] = useState<InstructorMetricRow[]>([]);
 
-  useEffect(() => {
-    void fetchReportConfig();
-  }, []);
-
-  useEffect(() => {
-    void fetchReport();
-  }, [searchParams]);
-
-  async function fetchReportConfig() {
-    try {
-      const res = await fetch("/api/reports/config?route=instructor-metrics");
-      const json = (await res.json()) as ReportConfigResponse;
-      if (!res.ok) {
-        throw new Error(json.error || "Request failed");
-      }
-      if (json.config) {
-        setReportTitle(String(json.config.title ?? reportTitle));
-        setReportDescription(json.config.description ?? null);
-      }
-    } catch {
-      // Keep static fallback title/description on metadata load failures.
-    }
-  }
-
-  async function fetchReport() {
-    setError(null);
-    setLoading(true);
-
-    try {
+  const fetchRows = useCallback(
+    async ({ searchParams, anonymize }: { searchParams: URLSearchParams | Readonly<URLSearchParams>; anonymize: boolean }) => {
       const params = new URLSearchParams({
         include_meta: "1",
         include_rows: "1",
-        anonymize: getAnonymizeEnabled() ? "1" : "0",
+        anonymize: anonymize ? "1" : "0",
       });
       const year = searchParams.get("academic_year");
-      const department = searchParams.get("department_code");
+      const program = searchParams.get("program_code");
       if (year) {
         params.set("academic_year", year);
       }
-      if (department) {
-        params.set("department_code", department);
+      if (program) {
+        params.set("program_code", program);
       }
 
       const res = await fetch(`/api/reports/instructor-metrics?${params.toString()}`);
@@ -160,26 +109,38 @@ function InstructorMetricsPageInner() {
         throw new Error(json.error || "Request failed");
       }
 
-      setRows(Array.isArray(json.data) ? json.data : []);
-    } catch (e: unknown) {
-      setRows([]);
-      setError(String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
+      const meta = json.meta;
+      if (meta) {
+        // Metadata is currently consumed by external filters UI.
+      }
+
+      return Array.isArray(json.data) ? json.data : [];
+    },
+    []
+  );
+
+  const { reportTitle, reportDescription, loading, error, rows } = useReportPageData<InstructorMetricRow>({
+    route: "instructor-metrics",
+    searchParams,
+    initialTitle: "Instructor Metrics",
+    initialDescription: null,
+    initialRows: EMPTY_INSTRUCTOR_ROWS,
+    rowsOnFetchError: EMPTY_INSTRUCTOR_ROWS,
+    fetchRows,
+  });
+  const safeRows = rows ?? [];
 
   const summary = useMemo(() => {
-    const instructorIds = new Set(rows.map((row) => String(row.sis_user_id)));
-    const totalAssignments = rows.reduce((sum, row) => sum + (toNumber(row.assignments_graded) ?? 0), 0);
+    const instructorIds = new Set(safeRows.map((row) => String(row.sis_user_id)));
+    const totalAssignments = safeRows.reduce((sum, row) => sum + (toNumber(row.assignments_graded) ?? 0), 0);
 
-    const avgScoreValues = rows.map((row) => toNumber(row.average_score)).filter((v): v is number => v !== null);
+    const avgScoreValues = safeRows.map((row) => toNumber(row.average_score)).filter((v): v is number => v !== null);
     const avgScore =
       avgScoreValues.length > 0
         ? avgScoreValues.reduce((sum, value) => sum + value, 0) / avgScoreValues.length
         : null;
 
-    const avgDaysToGradeValues = rows
+    const avgDaysToGradeValues = safeRows
       .map((row) => toNumber(row.days_to_grade))
       .filter((v): v is number => v !== null);
     const avgDaysToGrade =
@@ -193,17 +154,17 @@ function InstructorMetricsPageInner() {
       avgScore,
       avgDaysToGrade,
     };
-  }, [rows]);
+  }, [safeRows]);
 
-  const supportHoursByDepartment = useMemo(() => {
+  const supportHoursByProgram = useMemo(() => {
     const totals = new Map<string, number>();
-    for (const row of rows) {
-      const key = String(row.department_code ?? "");
-      const value = toNumber(row.teacher_support_hours) ?? 0;
+    for (const row of safeRows) {
+      const key = String(row.program_code ?? "");
+      const value = toNumber(row.credits_overseen) ?? 0;
       totals.set(key, (totals.get(key) ?? 0) + value);
     }
     return totals;
-  }, [rows]);
+  }, [safeRows]);
 
   const columns = useMemo<ReportTableColumn<InstructorMetricRow>[]>(() => {
     return [
@@ -227,20 +188,6 @@ function InstructorMetricsPageInner() {
         accessor: "average_score",
         columnType: "percent",
         fractionDigits: 1,
-      },
-      {
-        id: "average_attempts",
-        header: "Avg Attempts",
-        accessor: "average_attempts",
-        columnType: "number",
-        fractionDigits: 2,
-      },
-      {
-        id: "comments_per_submission_graded",
-        header: "Comments / Submission",
-        accessor: "comments_per_submission_graded",
-        columnType: "number",
-        fractionDigits: 3,
       },
       {
         id: "days_to_grade",
@@ -285,13 +232,13 @@ function InstructorMetricsPageInner() {
         header: "Grading Share",
         columnType: "custom",
         sortValue: (row) => {
-          const hours = toNumber(row.teacher_support_hours) ?? 0;
-          const deptTotal = supportHoursByDepartment.get(String(row.department_code ?? "")) ?? 0;
+          const hours = toNumber(row.credits_overseen) ?? 0;
+          const deptTotal = supportHoursByProgram.get(String(row.program_code ?? "")) ?? 0;
           return deptTotal > 0 ? hours / deptTotal : null;
         },
         render: (row) => {
-          const hours = toNumber(row.teacher_support_hours) ?? 0;
-          const deptTotal = supportHoursByDepartment.get(String(row.department_code ?? "")) ?? 0;
+          const hours = toNumber(row.credits_overseen) ?? 0;
+          const deptTotal = supportHoursByProgram.get(String(row.program_code ?? "")) ?? 0;
           const share = deptTotal > 0 ? hours / deptTotal : null;
           const sharePercent = share === null ? 0 : Math.max(0, Math.min(100, share * 100));
           const shareText = share === null ? "No data" : `${sharePercent.toFixed(1)}%`;
@@ -314,18 +261,7 @@ function InstructorMetricsPageInner() {
         },
       },
     ];
-  }, [supportHoursByDepartment]);
-
-  useEffect(() => {
-    function onAnonymizeChange() {
-      void fetchReport();
-    }
-
-    window.addEventListener("analytics:anonymize-change", onAnonymizeChange);
-    return () => {
-      window.removeEventListener("analytics:anonymize-change", onAnonymizeChange);
-    };
-  }, [searchParams]);
+  }, [supportHoursByProgram]);
 
   return (
     <div className="mx-auto w-full max-w-6xl">
@@ -363,24 +299,24 @@ function InstructorMetricsPageInner() {
       <ReportContainer className="mt-5">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold">Instructor Metrics</h2>
-          <MetaChip>Rows: {rows.length}</MetaChip>
+          <MetaChip>Rows: {safeRows.length}</MetaChip>
         </div>
 
         {loading && <div className="text-sm" style={{ color: "var(--app-text-muted)" }}>Loading...</div>}
 
-        {!loading && rows.length === 0 && (
+        {!loading && safeRows.length === 0 && (
           <div className="text-sm" style={{ color: "var(--app-text-muted)" }}>
             No data found for the selected filters.
           </div>
         )}
 
-        {rows.length > 0 && (
+        {safeRows.length > 0 && (
           <ReportTable
-            rows={rows}
+            rows={safeRows}
             columns={columns}
             defaultSort={{ columnId: "instructor", direction: "asc" }}
             rowKey={(row, index) =>
-              `${row.sis_user_id}-${row.academic_year}-${row.department_code}-${index}`
+              `${row.sis_user_id}-${row.academic_year}-${row.program_code}-${index}`
             }
           />
         )}
@@ -391,17 +327,8 @@ function InstructorMetricsPageInner() {
 
 export default function InstructorMetricsPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="mx-auto w-full max-w-6xl">
-          <ReportHeader title="Instructor Metrics" description={null} />
-          <ReportContainer className="mt-5">
-            <div className="text-sm" style={{ color: "var(--app-text-muted)" }}>Loading...</div>
-          </ReportContainer>
-        </div>
-      }
-    >
+    <ReportPageSuspense title="Instructor Metrics" maxWidthClassName="max-w-6xl">
       <InstructorMetricsPageInner />
-    </Suspense>
+    </ReportPageSuspense>
   );
 }
