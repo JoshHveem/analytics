@@ -1,4 +1,5 @@
 // lib/auth.ts
+import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { pool } from "./db";
 
@@ -18,6 +19,40 @@ export class HttpError extends Error {
     this.status = status;
     this.payload = payload;
   }
+}
+
+function getCookieValue(cookieHeader: string, name: string): string | null {
+  if (!cookieHeader) {
+    return null;
+  }
+  const parts = cookieHeader.split(";");
+  for (const part of parts) {
+    const [k, ...rest] = part.trim().split("=");
+    if (k?.toLowerCase() === name.toLowerCase()) {
+      return rest.join("=").trim() || null;
+    }
+  }
+  return null;
+}
+
+function getAuthSessionFingerprint(cookieHeader: string): string | null {
+  // Prefer stable SSO/session cookies when present.
+  const candidates = [
+    "sessionid",
+    "_session",
+    "auth_session",
+    "__session",
+    "csrftoken",
+  ];
+
+  for (const name of candidates) {
+    const value = getCookieValue(cookieHeader, name);
+    if (value) {
+      return createHash("sha256").update(`${name}:${value}`).digest("hex").slice(0, 24);
+    }
+  }
+
+  return null;
 }
 
 export async function requireAuth(): Promise<AuthUser> {
@@ -67,14 +102,41 @@ export async function requireAuth(): Promise<AuthUser> {
     });
   }
 
-  // Optional: update last_login_at (best effort; do not fail auth if DB role is read-only)
-  try {
-    await pool.query(`UPDATE auth."user" SET last_login_at = now() WHERE sis_user_id = $1`, [u.sis_user_id]);
-  } catch (e) {
-    console.warn("Auth warning: unable to update last_login_at", {
-      sis_user_id: u.sis_user_id,
-      error: e,
-    });
+  const forwardedFor = (h.get("x-forwarded-for") || "").trim();
+  const clientIp = forwardedFor
+    ? forwardedFor.split(",")[0]?.trim() || null
+    : (h.get("x-real-ip") || "").trim() || null;
+  const userAgent = (h.get("user-agent") || "").trim() || null;
+  const cookieHeader = h.get("cookie") || "";
+  const sessionFingerprint = getAuthSessionFingerprint(cookieHeader);
+  const sourceBase = process.env.SKIP_AUTH === "true" && process.env.NODE_ENV !== "production"
+    ? "dev-skip-auth"
+    : "web";
+  const source = sessionFingerprint ? `${sourceBase}:session:${sessionFingerprint}` : null;
+
+  // Optional: track login event once per auth session fingerprint.
+  if (source) {
+    try {
+      await pool.query(
+        `
+        INSERT INTO auth.user_login (sis_user_id, login_at, ip_address, user_agent, source, success, email)
+        SELECT $1, now(), NULLIF($3, '')::inet, $4, $5, true, $2
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM auth.user_login ul
+          WHERE ul.sis_user_id = $1
+            AND ul.source = $5
+            AND ul.success = true
+        )
+        `,
+        [u.sis_user_id, u.email, clientIp ?? "", userAgent, source]
+      );
+    } catch (e) {
+      console.warn("Auth warning: unable to write user_login event", {
+        sis_user_id: u.sis_user_id,
+        error: e,
+      });
+    }
   }
 
   return {
