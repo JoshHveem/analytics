@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ReportHeader } from "../_components/ReportHeader";
 import { ReportTable, type ReportTableColumn } from "../_components/ReportTable";
@@ -103,7 +103,7 @@ function instructorDisplayName(row: InstructorMetricRow): string {
   return `SIS ${row.sis_user_id}`;
 }
 
-export default function InstructorMetricsPage() {
+function InstructorMetricsPageInner() {
   const searchParams = useSearchParams();
   const [reportTitle, setReportTitle] = useState("Instructor Metrics");
   const [reportDescription, setReportDescription] = useState<string | null>(null);
@@ -386,5 +386,22 @@ export default function InstructorMetricsPage() {
         )}
       </ReportContainer>
     </div>
+  );
+}
+
+export default function InstructorMetricsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto w-full max-w-6xl">
+          <ReportHeader title="Instructor Metrics" description={null} />
+          <ReportContainer className="mt-5">
+            <div className="text-sm" style={{ color: "var(--app-text-muted)" }}>Loading...</div>
+          </ReportContainer>
+        </div>
+      }
+    >
+      <InstructorMetricsPageInner />
+    </Suspense>
   );
 }
