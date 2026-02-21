@@ -44,9 +44,9 @@ async function getPrograms(db: Queryable, academicYear: string | null): Promise<
     `
     SELECT DISTINCT
       ccr.program_code,
-      COALESCE(p.program_name, ccr.program_code) AS program_name
+      p.program_name
     FROM public.canvas_course_readiness ccr
-    LEFT JOIN public.programs p
+    INNER JOIN public.programs p
       ON p.program_code = ccr.program_code
      AND p.academic_year = ccr.academic_year
     ${whereClause}
@@ -62,6 +62,39 @@ async function getPrograms(db: Queryable, academicYear: string | null): Promise<
       program_name: String(row.program_name ?? code),
     };
   });
+}
+
+async function getCourseTypes(
+  db: Queryable,
+  academicYear: string | null,
+  programCode: string | null
+): Promise<string[]> {
+  const params: string[] = [];
+  const clauses: string[] = [];
+
+  if (academicYear) {
+    params.push(academicYear);
+    clauses.push(`ccr.academic_year = $${params.length}`);
+  }
+  if (programCode) {
+    params.push(programCode);
+    clauses.push(`ccr.program_code = $${params.length}`);
+  }
+
+  const whereClause = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+  const { rows } = await db.query(
+    `
+    SELECT DISTINCT ccr.course_type
+    FROM public.canvas_course_readiness ccr
+    ${whereClause}
+    ORDER BY ccr.course_type
+    `,
+    params
+  );
+
+  return rows
+    .map((row: { course_type: string | null }) => String(row.course_type ?? "").trim())
+    .filter((value) => value.length > 0);
 }
 
 async function resolveCourseNameExpression(db: Queryable): Promise<string> {
@@ -90,7 +123,12 @@ async function resolveCourseNameExpression(db: Queryable): Promise<string> {
   return "NULL::text";
 }
 
-async function getRows(db: Queryable, academicYear: string | null, programCode: string | null) {
+async function getRows(
+  db: Queryable,
+  academicYear: string | null,
+  programCode: string | null,
+  courseType: string | null
+) {
   const params: string[] = [];
   const clauses: string[] = [];
 
@@ -101,6 +139,10 @@ async function getRows(db: Queryable, academicYear: string | null, programCode: 
   if (programCode) {
     params.push(programCode);
     clauses.push(`ccr.program_code = $${params.length}`);
+  }
+  if (courseType) {
+    params.push(courseType);
+    clauses.push(`ccr.course_type = $${params.length}`);
   }
 
   const whereClause = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
@@ -113,7 +155,7 @@ async function getRows(db: Queryable, academicYear: string | null, programCode: 
       ccr.course_code,
       COALESCE(${courseNameExpression}, ccr.course_code) AS course_name,
       ccr.program_code,
-      COALESCE(p.program_name, ccr.program_code) AS program_name,
+      p.program_name,
       ccr.academic_year,
       ccr.creation_source,
       ccr.course_type,
@@ -128,7 +170,7 @@ async function getRows(db: Queryable, academicYear: string | null, programCode: 
     LEFT JOIN public.courses c
       ON c.course_code = ccr.course_code
      AND c.academic_year = ccr.academic_year
-    LEFT JOIN public.programs p
+    INNER JOIN public.programs p
       ON p.program_code = ccr.program_code
      AND p.academic_year = ccr.academic_year
     ${whereClause}
@@ -145,6 +187,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const requestedAcademicYear = cleanFilter(url.searchParams.get("academic_year"));
     const requestedProgramCode = cleanFilter(url.searchParams.get("program_code"));
+    const requestedCourseType = cleanFilter(url.searchParams.get("course_type"));
     const includeMeta = parseBool(url.searchParams.get("include_meta"));
     const includeRows = parseBool(url.searchParams.get("include_rows"));
 
@@ -164,10 +207,20 @@ export async function GET(request: Request) {
             requestedProgramCode && programs.some((program) => program.program_code === requestedProgramCode)
               ? requestedProgramCode
               : null;
+          const courseTypes = await getCourseTypes(db, selectedAcademicYear, selectedProgramCode);
+          const selectedCourseType =
+            requestedCourseType && courseTypes.includes(requestedCourseType)
+              ? requestedCourseType
+              : null;
 
           let rows: Record<string, unknown>[] = [];
           if (includeRows) {
-            const rawRows = await getRows(db, selectedAcademicYear, selectedProgramCode);
+            const rawRows = await getRows(
+              db,
+              selectedAcademicYear,
+              selectedProgramCode,
+              selectedCourseType
+            );
             rows = rawRows as Record<string, unknown>[];
           }
 
@@ -178,18 +231,25 @@ export async function GET(request: Request) {
             meta: {
               years,
               programs,
+              course_types: courseTypes,
               campuses: [],
               ...meta,
               selected: {
                 academic_year: selectedAcademicYear,
                 program_code: selectedProgramCode,
+                course_type: selectedCourseType,
                 campus: null,
               },
             },
           };
         }
 
-        const rawRows = await getRows(db, requestedAcademicYear, requestedProgramCode);
+        const rawRows = await getRows(
+          db,
+          requestedAcademicYear,
+          requestedProgramCode,
+          requestedCourseType
+        );
         const rows = anonymizeRows(rawRows as Record<string, unknown>[]);
         return { ok: true, count: rows.length, data: rows };
       }

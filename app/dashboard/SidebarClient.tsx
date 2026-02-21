@@ -136,10 +136,16 @@ function optionsFromMetaSource(raw: unknown, valueKeyHint?: string | null): Arra
   }
 
   const firstRecord = first as Record<string, unknown>;
+  const recordKeys = Object.keys(firstRecord);
+  const inferredValueKey =
+    recordKeys.find((key) => key.endsWith("_code")) ??
+    recordKeys.find((key) => key === "code" || key.endsWith("_id")) ??
+    recordKeys[0];
   const valueCandidates = [
     String(valueKeyHint ?? "").trim(),
     "value",
     "id",
+    inferredValueKey,
   ].filter((key) => key.length > 0);
   const valueKey = valueCandidates.find((key) => key in firstRecord);
   if (!valueKey) {
@@ -148,6 +154,7 @@ function optionsFromMetaSource(raw: unknown, valueKeyHint?: string | null): Arra
 
   const labelCandidates = [
     valueKey.replace(/_code$/, "_name"),
+    recordKeys.find((key) => key.endsWith("_name")) ?? "",
     "label",
     "name",
     valueKey,
@@ -681,7 +688,7 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
                               />
                             )}
                           </span>
-                          {filterType === "multi_select" && options.length > 0 ? (
+                          {filterType === "multi_select" ? (
                             <select
                               multiple
                               value={multiValue}
@@ -697,13 +704,18 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
                               }}
                               disabled={loadingFilterData}
                             >
+                              {options.length === 0 && (
+                                <option value="" disabled>
+                                  No options
+                                </option>
+                              )}
                               {options.map((option) => (
                                 <option key={option.value} value={option.value}>
                                   {option.label}
                                 </option>
                               ))}
                             </select>
-                          ) : filterType === "select" && options.length > 0 ? (
+                          ) : filterType === "select" ? (
                             <select
                               value={value}
                               onChange={(e) => applyFilterChange(filter.filter_code, e.target.value)}
@@ -715,6 +727,10 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
                               }}
                               disabled={loadingFilterData}
                             >
+                              {value === "" && <option value="">All</option>}
+                              {options.length === 0 && value !== "" && (
+                                <option value={value}>{value}</option>
+                              )}
                               {options.map((option) => (
                                 <option key={option.value} value={option.value}>
                                   {option.label}
