@@ -48,7 +48,7 @@ const SHARED_FIELD_COLOR_MAP: Record<string, string> = {
   program_code: APP_COLORS.purple,
   department_code: APP_COLORS.orange,
   academic_year: APP_COLORS.green,
-  campus: APP_COLORS.yellowDark,
+  campus_code: APP_COLORS.yellowDark,
 };
 
 function commaSeparated(values: string[] | null | undefined): string {

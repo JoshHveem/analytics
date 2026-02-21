@@ -18,7 +18,7 @@ export async function GET() {
       const visibleRes = await db.query(
         `
         SELECT DISTINCT s.program_code
-        FROM student_exit_status s
+        FROM dataset.student_exit_status s
         ORDER BY s.program_code
         `
       );

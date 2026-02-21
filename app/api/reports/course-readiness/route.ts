@@ -21,7 +21,7 @@ async function getYears(db: Queryable): Promise<string[]> {
   const { rows } = await db.query(
     `
     SELECT DISTINCT academic_year
-    FROM public.canvas_course_readiness
+    FROM dataset.canvas_course_readiness
     ORDER BY academic_year DESC
     `
   );
@@ -45,8 +45,8 @@ async function getPrograms(db: Queryable, academicYear: string | null): Promise<
     SELECT DISTINCT
       ccr.program_code,
       p.program_name
-    FROM public.canvas_course_readiness ccr
-    INNER JOIN public.programs p
+    FROM dataset.canvas_course_readiness ccr
+    INNER JOIN ref.programs p
       ON p.program_code = ccr.program_code
      AND p.academic_year = ccr.academic_year
     ${whereClause}
@@ -85,7 +85,7 @@ async function getCourseTypes(
   const { rows } = await db.query(
     `
     SELECT DISTINCT ccr.course_type
-    FROM public.canvas_course_readiness ccr
+    FROM dataset.canvas_course_readiness ccr
     ${whereClause}
     ORDER BY ccr.course_type
     `,
@@ -102,7 +102,7 @@ async function resolveCourseNameExpression(db: Queryable): Promise<string> {
     `
     SELECT column_name
     FROM information_schema.columns
-    WHERE table_schema = 'public'
+    WHERE table_schema = 'ref'
       AND table_name = 'courses'
       AND column_name IN ('course_name', 'course_title', 'name')
     `
@@ -166,11 +166,11 @@ async function getRows(
       ccr.employment_skills_evaluation_status,
       ccr.canvas_content_status,
       ccr.total_group_weights
-    FROM public.canvas_course_readiness ccr
-    LEFT JOIN public.courses c
+    FROM dataset.canvas_course_readiness ccr
+    LEFT JOIN ref.courses c
       ON c.course_code = ccr.course_code
      AND c.academic_year = ccr.academic_year
-    INNER JOIN public.programs p
+    INNER JOIN ref.programs p
       ON p.program_code = ccr.program_code
      AND p.academic_year = ccr.academic_year
     ${whereClause}
@@ -238,7 +238,7 @@ export async function GET(request: Request) {
                 academic_year: selectedAcademicYear,
                 program_code: selectedProgramCode,
                 course_type: selectedCourseType,
-                campus: null,
+                campus_code: null,
               },
             },
           };

@@ -16,7 +16,7 @@ async function getYears(db: Queryable) {
   const { rows } = await db.query(
     `
     SELECT DISTINCT academic_year
-    FROM public.instructor_metrics
+    FROM dataset.instructor_metrics
     ORDER BY academic_year DESC
     `
   );
@@ -38,8 +38,8 @@ async function getPrograms(db: Queryable, academicYear: string | null) {
     SELECT DISTINCT
       p.program_code,
       p.program_name
-    FROM public.programs p
-    INNER JOIN public.instructor_metrics im
+    FROM ref.programs p
+    INNER JOIN dataset.instructor_metrics im
       ON im.program_code = p.program_code
     ${whereClause}
     ORDER BY p.program_name, p.program_code
@@ -91,10 +91,10 @@ async function getRows(
       im.days_to_reply,
       im.credits_overseen,
       im.credits_graded
-    FROM public.instructor_metrics im
-    LEFT JOIN public.users u
+    FROM dataset.instructor_metrics im
+    LEFT JOIN ref.users u
       ON u.sis_user_id = im.sis_user_id
-    LEFT JOIN public.programs p
+    LEFT JOIN ref.programs p
       ON p.program_code = im.program_code
     ${whereClause}
     ORDER BY im.academic_year DESC, im.program_code, u.last_name NULLS LAST, u.first_name NULLS LAST, im.sis_user_id
@@ -149,7 +149,7 @@ export async function GET(request: Request) {
             selected: {
               academic_year: selectedAcademicYear,
               program_code: selectedProgramCode,
-              campus: null,
+              campus_code: null,
             },
           },
         };

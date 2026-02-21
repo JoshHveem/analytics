@@ -6,7 +6,7 @@ export async function GET() {
   try {
     const rows = await withAuthedDb(async ({ db }) => {
       const result = await db.query(
-        `SELECT DISTINCT academic_year FROM student_exit_status ORDER BY academic_year DESC`
+        `SELECT DISTINCT academic_year FROM dataset.student_exit_status ORDER BY academic_year DESC`
       );
       return result.rows;
     });

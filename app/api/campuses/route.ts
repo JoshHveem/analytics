@@ -12,7 +12,7 @@ export async function GET(request: Request) {
       // Build query depending on provided params
       if (academic_year && program_code) {
         const result = await db.query(
-          `SELECT DISTINCT campus FROM student_exit_status WHERE academic_year = $1 AND program_code = $2 ORDER BY campus`,
+          `SELECT DISTINCT campus_code FROM dataset.student_exit_status WHERE academic_year = $1 AND program_code = $2 ORDER BY campus_code`,
           [academic_year, program_code]
         );
         return result.rows;
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 
       if (academic_year) {
         const result = await db.query(
-          `SELECT DISTINCT campus FROM student_exit_status WHERE academic_year = $1 ORDER BY campus`,
+          `SELECT DISTINCT campus_code FROM dataset.student_exit_status WHERE academic_year = $1 ORDER BY campus_code`,
           [academic_year]
         );
         return result.rows;
@@ -28,19 +28,21 @@ export async function GET(request: Request) {
 
       if (program_code) {
         const result = await db.query(
-          `SELECT DISTINCT campus FROM student_exit_status WHERE program_code = $1 ORDER BY campus`,
+          `SELECT DISTINCT campus_code FROM dataset.student_exit_status WHERE program_code = $1 ORDER BY campus_code`,
           [program_code]
         );
         return result.rows;
       }
 
-      const result = await db.query(`SELECT DISTINCT campus FROM student_exit_status ORDER BY campus`);
+      const result = await db.query(
+        `SELECT DISTINCT campus_code FROM dataset.student_exit_status ORDER BY campus_code`
+      );
       return result.rows;
     });
     return NextResponse.json({
       ok: true,
       count: rows.length,
-      data: rows.map((r: { campus: string }) => r.campus),
+      data: rows.map((r: { campus_code: string }) => r.campus_code),
     });
   } catch (e: any) {
     if (e instanceof HttpError) {

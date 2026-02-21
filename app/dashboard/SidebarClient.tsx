@@ -68,16 +68,6 @@ function reportRouteFromPathname(pathname: string): string | null {
   return parts[1];
 }
 
-function filterCodeToParam(filterCode: string): string {
-  if (filterCode === "program") {
-    return "program_code";
-  }
-  if (filterCode === "department") {
-    return "department_code";
-  }
-  return filterCode;
-}
-
 function normalizeFilterType(type: string | null | undefined): "select" | "multi_select" | "text" {
   const normalized = String(type ?? "").trim().toLowerCase();
   if (normalized === "multi_select") {
@@ -96,26 +86,42 @@ function splitMultiValue(value: string): string[] {
     .filter((part) => part.length > 0);
 }
 
-function normalizeMetaSourceKey(filter: ReportFilterMenuItem): string {
+function normalizeMetaSourceKeys(filter: ReportFilterMenuItem): string[] {
+  const keys: string[] = [];
+  const pushKey = (key: string) => {
+    const normalized = key.trim().toLowerCase();
+    if (!normalized || keys.includes(normalized)) {
+      return;
+    }
+    keys.push(normalized);
+  };
+
   const tableName = String(filter.table ?? "").trim();
   if (tableName) {
-    return tableName;
+    pushKey(tableName);
+    pushKey(tableName.replace(/\./g, "_"));
+    const tableWithoutSchema = tableName.includes(".") ? tableName.split(".").pop() ?? "" : tableName;
+    pushKey(tableWithoutSchema);
   }
 
-  const param = filterCodeToParam(filter.filter_code);
+  const param = filter.filter_code;
   if (param === "academic_year") {
-    return "years";
+    pushKey("years");
+    return keys;
   }
 
   if (param.endsWith("_code")) {
-    return `${param.replace(/_code$/, "")}s`;
+    pushKey(`${param.replace(/_code$/, "")}s`);
+    return keys;
   }
 
   if (param.endsWith("y")) {
-    return `${param.slice(0, -1)}ies`;
+    pushKey(`${param.slice(0, -1)}ies`);
+    return keys;
   }
 
-  return `${param}s`;
+  pushKey(`${param}s`);
+  return keys;
 }
 
 function optionsFromMetaSource(raw: unknown, valueKeyHint?: string | null): Array<{ value: string; label: string }> {
@@ -456,7 +462,7 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
   }, [darkMode, anonymize, settingsReady]);
 
   function filterValue(filterCode: string): string {
-    const param = filterCodeToParam(filterCode);
+    const param = filterCode;
     const fromQuery = searchParams.get(param);
     if (fromQuery) {
       return fromQuery;
@@ -465,14 +471,18 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
   }
 
   function filterOptions(filter: ReportFilterMenuItem): Array<{ value: string; label: string }> {
-    const sourceKey = normalizeMetaSourceKey(filter);
-    const source = filterMeta[sourceKey];
-    return optionsFromMetaSource(source, filter.column);
+    const sourceKeys = normalizeMetaSourceKeys(filter);
+    const source = sourceKeys.find((key) => key in filterMeta);
+    const fallbackKey =
+      source ??
+      Object.keys(filterMeta).find((metaKey) => sourceKeys.includes(metaKey.trim().toLowerCase()));
+    const raw = fallbackKey ? filterMeta[fallbackKey] : undefined;
+    return optionsFromMetaSource(raw, filter.column);
   }
 
   function applyFilterChange(filterCode: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
-    const param = filterCodeToParam(filterCode);
+    const param = filterCode;
 
     if (value) {
       params.set(param, value);
@@ -481,7 +491,7 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
     }
 
     if (param === "program_code" || param === "academic_year") {
-      params.delete("campus");
+      params.delete("campus_code");
     }
 
     const next = params.toString();
@@ -490,7 +500,7 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
 
   function applyMultiFilterChange(filterCode: string, values: string[]) {
     const params = new URLSearchParams(searchParams.toString());
-    const param = filterCodeToParam(filterCode);
+    const param = filterCode;
     const cleaned = values.map((value) => value.trim()).filter((value) => value.length > 0);
 
     if (cleaned.length > 0) {
@@ -500,7 +510,7 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
     }
 
     if (param === "program_code" || param === "academic_year") {
-      params.delete("campus");
+      params.delete("campus_code");
     }
 
     const next = params.toString();
@@ -780,7 +790,3 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
     </>
   );
 }
-
-
-
-

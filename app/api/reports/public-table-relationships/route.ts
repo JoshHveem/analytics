@@ -9,10 +9,10 @@ const LINK_FIELDS = [
   "program_code",
   "department_code",
   "academic_year",
-  "campus",
+  "campus_code",
 ] as const;
 
-const TARGET_SCHEMAS = ["data"] as const;
+const TARGET_SCHEMAS = ["dataset"] as const;
 
 type TableSummaryRow = {
   table_schema: string;

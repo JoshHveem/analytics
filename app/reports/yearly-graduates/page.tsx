@@ -17,7 +17,7 @@ type StudentRow = {
   last_name?: string | null;
   program_code: string;
   program_name?: string | null;
-  campus: string;
+  campus_code: string;
   academic_year: number;
   exit_date: string | null;
   days_remaining: number | null;
@@ -45,7 +45,7 @@ type ExitStatusResponse = {
     selected: {
       academic_year: string | null;
       program_code: string | null;
-      campus: string | null;
+      campus_code: string | null;
     };
   };
   error?: string;
@@ -213,7 +213,7 @@ function ProgramExitStatusPageInner() {
 
       const ay = searchParams.get("academic_year");
       const pc = searchParams.get("program_code");
-      const cp = searchParams.get("campus");
+      const cp = searchParams.get("campus_code");
 
       if (ay) {
         params.set("academic_year", ay);
@@ -222,7 +222,7 @@ function ProgramExitStatusPageInner() {
         params.set("program_code", pc);
       }
       if (cp) {
-        params.set("campus", cp);
+        params.set("campus_code", cp);
       }
 
       const res = await fetch(`/api/reports/yearly-graduates?${params.toString()}`);

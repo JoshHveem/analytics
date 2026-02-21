@@ -14,7 +14,7 @@ function parseBool(value: string | null): boolean {
 
 async function getYears(db: Queryable) {
   const { rows } = await db.query(
-    `SELECT DISTINCT academic_year FROM student_exit_status ORDER BY academic_year DESC`
+    `SELECT DISTINCT academic_year FROM dataset.student_exit_status ORDER BY academic_year DESC`
   );
   return rows.map((r: { academic_year: string | number }) => String(r.academic_year));
 }
@@ -29,8 +29,8 @@ async function getPrograms(db: Queryable, academicYear: string | null) {
   const result = await db.query(
     `
     SELECT DISTINCT s.program_code, COALESCE(p.program_name, s.program_code) AS program_name
-    FROM student_exit_status s
-    LEFT JOIN programs p ON p.program_code = s.program_code
+    FROM dataset.student_exit_status s
+    LEFT JOIN ref.programs p ON p.program_code = s.program_code
     ${whereClause}
     ORDER BY program_name NULLS LAST, s.program_code
     `,
@@ -63,28 +63,28 @@ async function getCampuses(
 
   const { rows } = await db.query(
     `
-    SELECT DISTINCT s.campus
-    FROM student_exit_status s
+    SELECT DISTINCT s.campus_code
+    FROM dataset.student_exit_status s
     WHERE ${clauses.join(" AND ")}
-    ORDER BY s.campus
+    ORDER BY s.campus_code
     `,
     params
   );
 
-  return rows.map((r: { campus: string }) => String(r.campus));
+  return rows.map((r: { campus_code: string }) => String(r.campus_code));
 }
 
 async function getReportRows(
   db: Queryable,
   programCode: string,
-  campus: string,
+  campusCode: string,
   academicYear: string
 ) {
   const columnCheck = await db.query(
     `
     SELECT 1
     FROM information_schema.columns
-    WHERE table_schema = 'public'
+    WHERE table_schema = 'dataset'
       AND table_name = 'student_exit_status'
       AND column_name = 'chance_to_graduate'
     LIMIT 1
@@ -99,7 +99,7 @@ async function getReportRows(
     `
     SELECT column_name
     FROM information_schema.columns
-    WHERE table_schema = 'public'
+    WHERE table_schema = 'ref'
       AND table_name = 'users'
       AND column_name IN ('sis_user_id', 'first_name', 'last_name')
     `
@@ -109,7 +109,7 @@ async function getReportRows(
   );
   const canJoinUsers =
     userColumns.has("sis_user_id") && userColumns.has("first_name") && userColumns.has("last_name");
-  const userJoin = canJoinUsers ? "LEFT JOIN users u ON u.sis_user_id = s.sis_user_id" : "";
+  const userJoin = canJoinUsers ? "LEFT JOIN ref.users u ON u.sis_user_id = s.sis_user_id" : "";
   const userNameSelect = canJoinUsers
     ? `
       u.first_name,
@@ -127,7 +127,7 @@ async function getReportRows(
       ${userNameSelect}
       s.program_code,
       COALESCE(p.program_name, s.program_code) AS program_name,
-      s.campus,
+      s.campus_code,
       s.academic_year,
       s.exit_date,
       s.days_remaining,
@@ -144,15 +144,15 @@ async function getReportRows(
       s.buffer_start_date,
       ${chanceToGraduateSelect},
       s.chance_to_complete::double precision AS chance_to_complete
-    FROM student_exit_status s
-    LEFT JOIN programs p ON p.program_code = s.program_code
+    FROM dataset.student_exit_status s
+    LEFT JOIN ref.programs p ON p.program_code = s.program_code
     ${userJoin}
     WHERE s.program_code = $1
-      AND s.campus = $2
+      AND s.campus_code = $2
       AND s.academic_year = $3
     ORDER BY s.exit_date NULLS LAST, s.sis_user_id
     `,
-    [programCode, campus, academicYear]
+    [programCode, campusCode, academicYear]
   );
 
   return rows;
@@ -163,12 +163,12 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
 
     const requestedProgramCode = url.searchParams.get("program_code");
-    const requestedCampus = url.searchParams.get("campus");
+    const requestedCampusCode = url.searchParams.get("campus_code");
     const requestedAcademicYear = url.searchParams.get("academic_year");
     const includeMeta = parseBool(url.searchParams.get("include_meta"));
     const includeRows = parseBool(url.searchParams.get("include_rows"));
     const payload = await withSecureReport(request, "yearly-graduates", async ({ db, anonymizeRows, meta }) => {
-        if (!includeMeta && !requestedProgramCode && !requestedCampus && !requestedAcademicYear) {
+        if (!includeMeta && !requestedProgramCode && !requestedCampusCode && !requestedAcademicYear) {
           const fiscalCutoff = "2026-07-01";
           const { rows } = await db.query(
             `
@@ -180,7 +180,7 @@ export async function GET(request: Request) {
                   AND is_graduate = false
                   AND projected_exit_date <= $1
               ) AS on_track
-            FROM student_exit_status
+            FROM dataset.student_exit_status
             `,
             [fiscalCutoff]
           );
@@ -204,16 +204,17 @@ export async function GET(request: Request) {
             : programs[0]?.program_code ?? null;
 
           const campuses = await getCampuses(db, selectedAcademicYear, selectedProgramCode);
-          const selectedCampus = requestedCampus && campuses.includes(requestedCampus)
-            ? requestedCampus
+          const selectedCampusCode =
+            requestedCampusCode && campuses.includes(requestedCampusCode)
+            ? requestedCampusCode
             : campuses[0] ?? null;
 
           let rows: any[] = [];
-          if (includeRows && selectedProgramCode && selectedCampus && selectedAcademicYear) {
+          if (includeRows && selectedProgramCode && selectedCampusCode && selectedAcademicYear) {
             const rawRows = await getReportRows(
               db,
               selectedProgramCode,
-              selectedCampus,
+              selectedCampusCode,
               selectedAcademicYear
             );
             rows = anonymizeRows(rawRows as Record<string, unknown>[]);
@@ -231,17 +232,22 @@ export async function GET(request: Request) {
               selected: {
                 academic_year: selectedAcademicYear,
                 program_code: selectedProgramCode,
-                campus: selectedCampus,
+                campus_code: selectedCampusCode,
               },
             },
           };
         }
 
-        if (!requestedProgramCode || !requestedCampus || !requestedAcademicYear) {
-          throw new HttpError(400, { error: "Missing required query parameters: program_code, campus, academic_year" });
+        if (!requestedProgramCode || !requestedCampusCode || !requestedAcademicYear) {
+          throw new HttpError(400, { error: "Missing required query parameters: program_code, campus_code, academic_year" });
         }
 
-        const rawRows = await getReportRows(db, requestedProgramCode, requestedCampus, requestedAcademicYear);
+        const rawRows = await getReportRows(
+          db,
+          requestedProgramCode,
+          requestedCampusCode,
+          requestedAcademicYear
+        );
         const rows = anonymizeRows(rawRows as Record<string, unknown>[]);
         return { ok: true, count: rows.length, data: rows };
       });

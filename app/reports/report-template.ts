@@ -148,7 +148,7 @@ function ReportPageInner() {
         searchParams,
         includeMeta: true,
         includeRows: true,
-        knownFilterKeys: ["academic_year", "program_code", "campus"],
+        knownFilterKeys: ["academic_year", "program_code", "campus_code"],
       });
       const res = await fetch("/api/reports/<route>?" + params.toString());
       const json = (await res.json()) as TemplateReportResponse<Row>;

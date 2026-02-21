@@ -12,8 +12,8 @@ export async function GET(request: Request) {
         const result = await db.query(
           `
           SELECT DISTINCT s.program_code, COALESCE(p.program_name, s.program_code) AS program_name
-          FROM student_exit_status s
-          LEFT JOIN programs p ON p.program_code = s.program_code
+          FROM dataset.student_exit_status s
+          LEFT JOIN ref.programs p ON p.program_code = s.program_code
           WHERE s.academic_year = $1
           ORDER BY program_name NULLS LAST, s.program_code
           `,
@@ -25,8 +25,8 @@ export async function GET(request: Request) {
       const result = await db.query(
         `
         SELECT DISTINCT s.program_code, COALESCE(p.program_name, s.program_code) AS program_name
-        FROM student_exit_status s
-        LEFT JOIN programs p ON p.program_code = s.program_code
+        FROM dataset.student_exit_status s
+        LEFT JOIN ref.programs p ON p.program_code = s.program_code
         ORDER BY program_name NULLS LAST, s.program_code
         `
       );
