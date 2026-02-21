@@ -1,1 +1,0 @@
-ssh -L 5434:localhost:5432 root@bridgetools.dev
