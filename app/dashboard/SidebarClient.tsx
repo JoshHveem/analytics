@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import type React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReportCategory } from "@/lib/report-catalog";
 import { InfoModalTrigger } from "@/app/_components/InfoModalTrigger";
@@ -23,6 +24,7 @@ type ReportFilterMenuItem = {
 type ReportConfigResponse = {
   ok: boolean;
   config?: {
+    id: string;
     filters: Array<{
       filter_code: string;
       type: string;
@@ -32,16 +34,6 @@ type ReportConfigResponse = {
       column: string | null;
     }>;
   };
-};
-
-type ProgramOption = {
-  program_code: string;
-  program_name: string;
-};
-
-type DepartmentOption = {
-  department_code: string;
-  department_name: string;
 };
 
 type ReportMetaResponse = {
@@ -60,12 +52,110 @@ type UserSettingsResponse = {
   error?: string;
 };
 
-function reportRouteFromPathname(pathname: string): string | null {
-  const parts = pathname.split("/").filter(Boolean);
-  if (parts.length !== 2 || parts[0] !== "reports") {
-    return null;
+type EditAvailableColumn = {
+  key: string;
+  dataset_key: string;
+  column: string;
+  source_schema: string;
+  selected: boolean;
+};
+
+type TableConfigResponse = {
+  ok: boolean;
+  config?: {
+    report_id: string;
+    report_component_id: string;
+    route: string;
+    component_code: string;
+    selected_columns: string[];
+    available_columns: EditAvailableColumn[];
+    column_types: Record<string, unknown>;
+  };
+  error?: string;
+};
+
+type ReportPathContext = {
+  reportRoute: string | null;
+  isReportEdit: boolean;
+  isComponentEdit: boolean;
+  reportComponentId: string | null;
+};
+
+type ReportEditableFilterItem = {
+  filter_code: string;
+  label: string;
+  description: string | null;
+  type: string;
+  table: string | null;
+  column: string | null;
+  selected: boolean;
+};
+
+type ReportEditorFiltersResponse = {
+  ok: boolean;
+  report?: {
+    report_id: string;
+    route: string;
+  };
+  available_filters?: ReportEditableFilterItem[];
+  selected_filters?: string[];
+  error?: string;
+};
+
+const EDIT_COLUMNS_STATE_EVENT = "analytics:report-component-edit-state";
+const EDIT_COLUMNS_CHANGE_EVENT = "analytics:report-component-edit-columns-change";
+const SIDEBAR_WIDTH_STORAGE_KEY = "analytics-sidebar-width";
+const SIDEBAR_DEFAULT_WIDTH = 256;
+const SIDEBAR_MIN_WIDTH = 240;
+const SIDEBAR_MAX_WIDTH = 520;
+
+function clampSidebarWidth(value: number): number {
+  if (!Number.isFinite(value)) {
+    return SIDEBAR_DEFAULT_WIDTH;
   }
-  return parts[1];
+  return Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, Math.round(value)));
+}
+
+async function fetchReportFilterMeta(args: {
+  reportId: string;
+  params: URLSearchParams;
+}): Promise<ReportMetaResponse> {
+  const { reportId, params } = args;
+  const query = new URLSearchParams(params.toString());
+  query.set("report_id", reportId);
+  const res = await fetch(`/api/reports/filter-meta?${query.toString()}`, {
+    cache: "no-store",
+  });
+  const json = (await res.json()) as ReportMetaResponse;
+  if (res.ok && json.meta) {
+    return json;
+  }
+  throw new Error("Report filter metadata endpoint unavailable");
+}
+
+function parseReportPathContext(pathname: string): ReportPathContext {
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts[0] !== "reports" || parts.length < 2) {
+    return {
+      reportRoute: null,
+      isReportEdit: false,
+      isComponentEdit: false,
+      reportComponentId: null,
+    };
+  }
+
+  const reportRoute = parts[1];
+  const isReportEdit = parts.length >= 3 && parts[2] === "edit";
+  const isComponentEdit =
+    parts.length >= 5 && parts[2] === "components" && parts[4] === "edit";
+  const reportComponentId = isComponentEdit ? parts[3] : null;
+
+  return {
+    reportRoute,
+    isReportEdit,
+    isComponentEdit,
+    reportComponentId,
+  };
 }
 
 function normalizeFilterType(type: string | null | undefined): "select" | "multi_select" | "text" {
@@ -183,6 +273,22 @@ function optionsFromMetaSource(raw: unknown, valueKeyHint?: string | null): Arra
     .filter((option): option is { value: string; label: string } => option !== null);
 }
 
+function groupedColumns(columns: EditAvailableColumn[]): Array<[string, EditAvailableColumn[]]> {
+  const byDataset = new Map<string, EditAvailableColumn[]>();
+  for (const column of columns) {
+    const datasetKey = `${column.source_schema}.${column.dataset_key}`;
+    const existing = byDataset.get(datasetKey) ?? [];
+    existing.push(column);
+    byDataset.set(datasetKey, existing);
+  }
+  return Array.from(byDataset.entries())
+    .map(([datasetKey, datasetColumns]) => [
+      datasetKey,
+      [...datasetColumns].sort((a, b) => a.column.localeCompare(b.column)),
+    ] as [string, EditAvailableColumn[]])
+    .sort(([left], [right]) => left.localeCompare(right));
+}
+
 function SettingToggle({
   label,
   enabled,
@@ -230,14 +336,32 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const reportRoute = useMemo(() => reportRouteFromPathname(pathname), [pathname]);
+  const reportPathContext = useMemo(() => parseReportPathContext(pathname), [pathname]);
+  const reportRoute = reportPathContext.reportRoute;
+  const isReportEditMode = reportPathContext.isReportEdit;
+  const isComponentEditMode = reportPathContext.isComponentEdit;
+  const isReportOrComponentEditMode = isReportEditMode || isComponentEditMode;
+  const reportComponentId = reportPathContext.reportComponentId;
   const queryKey = searchParams.toString();
+  const [reportId, setReportId] = useState<string | null>(null);
   const [filters, setFilters] = useState<ReportFilterMenuItem[]>([]);
-  const [menuMode, setMenuMode] = useState<"reports" | "filters" | "settings">(reportRoute ? "filters" : "reports");
+  const [menuMode, setMenuMode] = useState<"reports" | "filters" | "edit_filters" | "columns" | "settings">(
+    isComponentEditMode ? "columns" : reportRoute ? "filters" : "reports"
+  );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [filterMeta, setFilterMeta] = useState<Record<string, unknown>>({});
   const [selectedMeta, setSelectedMeta] = useState<Record<string, string | null>>({});
   const [loadingFilterData, setLoadingFilterData] = useState(false);
+  const [loadingEditColumns, setLoadingEditColumns] = useState(false);
+  const [editAvailableColumns, setEditAvailableColumns] = useState<EditAvailableColumn[]>([]);
+  const [editSelectedColumns, setEditSelectedColumns] = useState<string[]>([]);
+  const [loadingEditFilters, setLoadingEditFilters] = useState(false);
+  const [savingEditFilters, setSavingEditFilters] = useState(false);
+  const [editFilterError, setEditFilterError] = useState<string | null>(null);
+  const [editFilterMessage, setEditFilterMessage] = useState<string | null>(null);
+  const [editAvailableFilters, setEditAvailableFilters] = useState<ReportEditableFilterItem[]>([]);
+  const [editSelectedFilters, setEditSelectedFilters] = useState<string[]>([]);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(SIDEBAR_DEFAULT_WIDTH);
   const [darkMode, setDarkMode] = useState(false);
   const [anonymize, setAnonymize] = useState(false);
   const [settingsReady, setSettingsReady] = useState(false);
@@ -247,21 +371,26 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
 
     async function loadFilters() {
       if (!reportRoute) {
+        setReportId(null);
         setFilters([]);
         return;
       }
 
       try {
-        const res = await fetch(`/api/reports/config?route=${encodeURIComponent(reportRoute)}`);
+        const res = await fetch(`/api/reports/config?route=${encodeURIComponent(reportRoute)}`, {
+          cache: "no-store",
+        });
         const json = (await res.json()) as ReportConfigResponse;
         if (!res.ok || !json.config) {
           if (!cancelled) {
+            setReportId(null);
             setFilters([]);
           }
           return;
         }
 
         if (!cancelled) {
+          setReportId(String(json.config.id));
           setFilters(
             (json.config.filters ?? []).map((f) => ({
               filter_code: String(f.filter_code),
@@ -275,6 +404,7 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
         }
       } catch {
         if (!cancelled) {
+          setReportId(null);
           setFilters([]);
         }
       }
@@ -290,7 +420,7 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
     let cancelled = false;
 
     async function loadFilterMeta() {
-      if (!reportRoute) {
+      if (!reportRoute || !reportId) {
         setFilterMeta({});
         setSelectedMeta({});
         return;
@@ -308,21 +438,14 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
           }
         }
 
-        const res = await fetch(`/api/reports/${encodeURIComponent(reportRoute)}?${params.toString()}`);
-        const json = (await res.json()) as ReportMetaResponse;
-        if (!res.ok || !json.meta) {
-          if (!cancelled) {
-            setFilterMeta({});
-            setSelectedMeta({});
-          }
-          return;
-        }
+        const json = await fetchReportFilterMeta({ reportId, params });
+        const meta = json.meta ?? {};
 
         if (!cancelled) {
-          setFilterMeta(json.meta);
+          setFilterMeta(meta);
           const selectedRaw =
-            json.meta.selected && typeof json.meta.selected === "object"
-              ? (json.meta.selected as Record<string, unknown>)
+            meta.selected && typeof meta.selected === "object"
+              ? (meta.selected as Record<string, unknown>)
               : {};
           const nextSelected: Record<string, string | null> = {};
           for (const [key, value] of Object.entries(selectedRaw)) {
@@ -346,15 +469,180 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
     return () => {
       cancelled = true;
     };
-  }, [reportRoute, searchParams]);
+  }, [reportId, reportRoute, searchParams]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadEditColumns() {
+      if (!isComponentEditMode || !reportRoute || !reportComponentId) {
+        setEditAvailableColumns([]);
+        setEditSelectedColumns([]);
+        return;
+      }
+
+      setLoadingEditColumns(true);
+      try {
+        const query = new URLSearchParams({
+          report_id: reportRoute,
+          report_component_id: reportComponentId,
+        });
+        const res = await fetch(`/api/reports/components/table-config?${query.toString()}`, {
+          cache: "no-store",
+        });
+        const json = (await res.json()) as TableConfigResponse;
+        if (!res.ok || !json.config) {
+          throw new Error(json.error || "Failed to load component columns");
+        }
+
+        if (!cancelled) {
+          const availableColumns = json.config.available_columns ?? [];
+          const selectedColumns = Array.from(new Set(json.config.selected_columns ?? []));
+          setEditAvailableColumns(availableColumns);
+          setEditSelectedColumns(selectedColumns);
+        }
+      } catch {
+        if (!cancelled) {
+          setEditAvailableColumns([]);
+          setEditSelectedColumns([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingEditColumns(false);
+        }
+      }
+    }
+
+    void loadEditColumns();
+    return () => {
+      cancelled = true;
+    };
+  }, [isComponentEditMode, reportComponentId, reportRoute]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadEditFilters() {
+      if (!isReportOrComponentEditMode || !reportId) {
+        setEditAvailableFilters([]);
+        setEditSelectedFilters([]);
+        setEditFilterError(null);
+        setEditFilterMessage(null);
+        return;
+      }
+
+      setLoadingEditFilters(true);
+      setEditFilterError(null);
+      setEditFilterMessage(null);
+      try {
+        const query = new URLSearchParams({
+          report_id: reportId,
+        });
+        const res = await fetch(`/api/reports/editor/filters?${query.toString()}`, {
+          cache: "no-store",
+        });
+        const json = (await res.json()) as ReportEditorFiltersResponse;
+        if (!res.ok || !json.ok) {
+          throw new Error(json.error || "Failed to load editable filters");
+        }
+
+        if (!cancelled) {
+          const availableFilters = Array.isArray(json.available_filters) ? json.available_filters : [];
+          const selectedFilters = Array.from(
+            new Set((json.selected_filters ?? []).map((value) => String(value ?? "").trim()).filter(Boolean))
+          );
+          setEditAvailableFilters(availableFilters);
+          setEditSelectedFilters(selectedFilters);
+        }
+      } catch (error: unknown) {
+        if (!cancelled) {
+          setEditAvailableFilters([]);
+          setEditSelectedFilters([]);
+          setEditFilterError(String(error));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingEditFilters(false);
+        }
+      }
+    }
+
+    void loadEditFilters();
+    return () => {
+      cancelled = true;
+    };
+  }, [isReportOrComponentEditMode, reportId]);
+
+  useEffect(() => {
+    function handleEditState(event: Event) {
+      if (!isComponentEditMode || !reportRoute || !reportComponentId) {
+        return;
+      }
+      const customEvent = event as CustomEvent<{
+        reportId?: string;
+        reportComponentId?: string;
+        availableColumns?: EditAvailableColumn[];
+        selectedColumns?: string[];
+      }>;
+      const detail = customEvent.detail ?? {};
+      if (String(detail.reportId ?? "") !== reportRoute) {
+        return;
+      }
+      if (String(detail.reportComponentId ?? "") !== reportComponentId) {
+        return;
+      }
+      if (Array.isArray(detail.availableColumns)) {
+        setEditAvailableColumns(detail.availableColumns);
+      }
+      if (Array.isArray(detail.selectedColumns)) {
+        setEditSelectedColumns(Array.from(new Set(detail.selectedColumns.map((item) => String(item ?? "")))));
+      }
+    }
+
+    window.addEventListener(EDIT_COLUMNS_STATE_EVENT, handleEditState as EventListener);
+    return () => {
+      window.removeEventListener(EDIT_COLUMNS_STATE_EVENT, handleEditState as EventListener);
+    };
+  }, [isComponentEditMode, reportComponentId, reportRoute]);
+
+  useEffect(() => {
+    if (isComponentEditMode) {
+      setMenuMode("columns");
+      return;
+    }
+    if (isReportEditMode) {
+      setMenuMode("edit_filters");
+      return;
+    }
     setMenuMode(reportRoute ? "filters" : "reports");
-  }, [reportRoute]);
+  }, [isComponentEditMode, isReportEditMode, reportRoute]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname, queryKey]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = Number(raw);
+      setSidebarWidth(clampSidebarWidth(parsed));
+    } catch {
+      // no-op
+    }
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--sidebar-width", `${clampSidebarWidth(sidebarWidth)}px`);
+    try {
+      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clampSidebarWidth(sidebarWidth)));
+    } catch {
+      // no-op
+    }
+  }, [sidebarWidth]);
 
   useEffect(() => {
     let cancelled = false;
@@ -517,7 +805,176 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
     router.replace(next ? `${pathname}?${next}` : pathname);
   }
 
-  const mobileModeLabel = menuMode === "reports" ? "Reports" : menuMode === "filters" ? "Filters" : "Settings";
+  function applyEditColumnChange(columnKey: string, checked: boolean) {
+    if (!isComponentEditMode || !reportRoute || !reportComponentId) {
+      return;
+    }
+    const available = new Set(editAvailableColumns.map((column) => column.key));
+    if (!available.has(columnKey)) {
+      return;
+    }
+
+    setEditSelectedColumns((current) => {
+      const currentSet = new Set(current);
+      if (checked) {
+        currentSet.add(columnKey);
+      } else {
+        currentSet.delete(columnKey);
+      }
+      const next = Array.from(currentSet);
+      window.dispatchEvent(
+        new CustomEvent(EDIT_COLUMNS_CHANGE_EVENT, {
+          detail: {
+            reportId: reportRoute,
+            reportComponentId,
+            selectedColumns: next,
+          },
+        })
+      );
+      return next;
+    });
+  }
+
+  function applyEditFilterChange(filterCode: string, checked: boolean) {
+    const available = new Set(editAvailableFilters.map((filter) => String(filter.filter_code ?? "").trim()));
+    if (!available.has(filterCode)) {
+      return;
+    }
+    setEditSelectedFilters((current) => {
+      const nextSet = new Set(current);
+      if (checked) {
+        nextSet.add(filterCode);
+      } else {
+        nextSet.delete(filterCode);
+      }
+      return Array.from(nextSet).sort((left, right) => left.localeCompare(right));
+    });
+  }
+
+  async function saveEditFilters() {
+    if (!reportId || !isReportOrComponentEditMode) {
+      return;
+    }
+
+    setSavingEditFilters(true);
+    setEditFilterError(null);
+    setEditFilterMessage(null);
+    try {
+      const res = await fetch("/api/reports/editor/filters", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          report_id: reportId,
+          selected_filters: editSelectedFilters,
+        }),
+      });
+      const json = (await res.json()) as ReportEditorFiltersResponse;
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || "Failed to update report filters");
+      }
+
+      const availableFilters = Array.isArray(json.available_filters) ? json.available_filters : [];
+      const selectedFilters = Array.from(
+        new Set((json.selected_filters ?? []).map((value) => String(value ?? "").trim()).filter(Boolean))
+      );
+
+      setEditAvailableFilters(availableFilters);
+      setEditSelectedFilters(selectedFilters);
+      setFilters(
+        availableFilters
+          .filter((filter) => selectedFilters.includes(String(filter.filter_code)))
+          .map((filter) => ({
+            filter_code: String(filter.filter_code),
+            type: String(filter.type ?? "select"),
+            label: String(filter.label ?? filter.filter_code),
+            description: filter.description ?? null,
+            table: filter.table ?? null,
+            column: filter.column ?? null,
+          }))
+      );
+
+      const params = new URLSearchParams(searchParams.toString());
+      const selectedSet = new Set(selectedFilters);
+      let paramsChanged = false;
+      const managedFilterKeys = new Set([
+        ...availableFilters.map((filter) => String(filter.filter_code)),
+        ...filters.map((filter) => String(filter.filter_code)),
+      ]);
+      for (const filterCode of managedFilterKeys) {
+        if (!selectedSet.has(filterCode) && params.has(filterCode)) {
+          params.delete(filterCode);
+          paramsChanged = true;
+        }
+      }
+      if (paramsChanged) {
+        const next = params.toString();
+        router.replace(next ? `${pathname}?${next}` : pathname);
+      }
+
+      setEditFilterMessage("Report filters updated.");
+    } catch (error: unknown) {
+      setEditFilterError(String(error));
+    } finally {
+      setSavingEditFilters(false);
+    }
+  }
+
+  const groupedEditColumns = useMemo(() => groupedColumns(editAvailableColumns), [editAvailableColumns]);
+  const editSelectedFiltersSignature = useMemo(
+    () => JSON.stringify([...editSelectedFilters].sort((left, right) => left.localeCompare(right))),
+    [editSelectedFilters]
+  );
+  const persistedEditSelectedFiltersSignature = useMemo(
+    () =>
+      JSON.stringify(
+        editAvailableFilters
+          .filter((filter) => filter.selected)
+          .map((filter) => String(filter.filter_code))
+          .sort((left, right) => left.localeCompare(right))
+      ),
+    [editAvailableFilters]
+  );
+  const editFiltersDirty = editSelectedFiltersSignature !== persistedEditSelectedFiltersSignature;
+
+  function startSidebarResize(event: React.MouseEvent<HTMLDivElement>) {
+    if (window.innerWidth < 1024) {
+      return;
+    }
+
+    event.preventDefault();
+    const initialX = event.clientX;
+    const initialWidth = clampSidebarWidth(sidebarWidth);
+
+    const handleMove = (moveEvent: MouseEvent) => {
+      const delta = moveEvent.clientX - initialX;
+      setSidebarWidth(clampSidebarWidth(initialWidth + delta));
+    };
+
+    const handleUp = () => {
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+  }
+
+  const mobileModeLabel =
+    menuMode === "reports"
+      ? "Reports"
+      : menuMode === "filters"
+        ? "Filters"
+        : menuMode === "edit_filters"
+          ? "Edit Filters"
+          : menuMode === "columns"
+            ? "Columns"
+            : "Settings";
 
   return (
     <>
@@ -559,7 +1016,7 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
 
       <nav
         id="mobile-sidebar"
-        className={`fixed left-0 z-30 overflow-auto border-r border-b p-4 transition-transform duration-200 lg:top-0 lg:z-20 lg:h-screen lg:w-64 lg:border-b-0 lg:p-6 ${
+        className={`fixed left-0 z-30 overflow-auto border-r border-b p-4 transition-transform duration-200 lg:top-0 lg:z-20 lg:h-screen lg:w-[var(--sidebar-width)] lg:border-b-0 lg:p-6 ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         } top-14 h-[calc(100dvh-3.5rem)] w-80 max-w-[calc(100vw-1rem)]`}
         style={{
@@ -582,7 +1039,17 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
             Home
           </Link>
           <div className="mb-4 rounded-md border p-1" style={{ borderColor: "var(--app-border)" }}>
-            <div className={`grid gap-1 ${reportRoute ? "grid-cols-3" : "grid-cols-2"}`}>
+            <div
+              className={`grid gap-1 ${
+                reportRoute
+                  ? isComponentEditMode
+                    ? "grid-cols-5"
+                    : isReportEditMode
+                      ? "grid-cols-4"
+                      : "grid-cols-3"
+                  : "grid-cols-2"
+              }`}
+            >
               <button
                 type="button"
                 onClick={() => setMenuMode("reports")}
@@ -605,6 +1072,32 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
                   }}
                 >
                   Filters
+                </button>
+              )}
+              {reportRoute && isReportOrComponentEditMode && (
+                <button
+                  type="button"
+                  onClick={() => setMenuMode("edit_filters")}
+                  className="rounded px-2 py-1 text-xs font-medium"
+                  style={{
+                    backgroundColor: menuMode === "edit_filters" ? "var(--app-control-track-active)" : "var(--app-surface)",
+                    color: menuMode === "edit_filters" ? "var(--app-control-thumb)" : "var(--app-text-muted)",
+                  }}
+                >
+                  Edit Filters
+                </button>
+              )}
+              {isComponentEditMode && (
+                <button
+                  type="button"
+                  onClick={() => setMenuMode("columns")}
+                  className="rounded px-2 py-1 text-xs font-medium"
+                  style={{
+                    backgroundColor: menuMode === "columns" ? "var(--app-control-track-active)" : "var(--app-surface)",
+                    color: menuMode === "columns" ? "var(--app-control-thumb)" : "var(--app-text-muted)",
+                  }}
+                >
+                  Columns
                 </button>
               )}
               <button
@@ -665,6 +1158,24 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
                     No active reports found in `meta.reports`.
                   </p>
                 )}
+                <div>
+                  {/* These reports are all hard coded reports, not ones pulled from meta.reports */}
+                  <div className="mb-2 text-xs font-medium" style={{ color: "var(--app-text-muted)" }}>
+                    Other
+                  </div>
+                  <Link
+                    href="/reports/table-relationships"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="mb-4 block px-3 py-2 text-sm font-medium"
+                    style={{
+                      borderColor: pathname === "/reports/table-relationships" ? "var(--app-control-track-active)" : "var(--app-border)",
+                      backgroundColor: pathname === "/reports/table-relationships" ? "var(--app-surface-muted)" : "transparent",
+                      color: "var(--app-text-strong)",
+                    }}
+                  >
+                    Table Relationships 
+                  </Link>
+                </div>
               </>
             )}
 
@@ -737,7 +1248,6 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
                               }}
                               disabled={loadingFilterData}
                             >
-                              {value === "" && <option value="">All</option>}
                               {options.length === 0 && value !== "" && (
                                 <option value={value}>{value}</option>
                               )}
@@ -768,6 +1278,128 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
               </div>
             )}
 
+            {reportRoute && isReportOrComponentEditMode && menuMode === "edit_filters" && (
+              <div>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="text-xs" style={{ color: "var(--app-text-muted)" }}>
+                    Select which filters are used by this report.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void saveEditFilters()}
+                    disabled={loadingEditFilters || savingEditFilters || !editFiltersDirty}
+                    className="rounded border px-2 py-1 text-xs"
+                    style={{ borderColor: "var(--app-border)", color: "var(--app-text-strong)" }}
+                  >
+                    {savingEditFilters ? "Saving..." : "Save"}
+                  </button>
+                </div>
+
+                {editFilterError && (
+                  <p className="mb-2 text-xs" style={{ color: "var(--app-danger, #b91c1c)" }}>
+                    {editFilterError}
+                  </p>
+                )}
+                {editFilterMessage && (
+                  <p className="mb-2 text-xs" style={{ color: "var(--app-success, #166534)" }}>
+                    {editFilterMessage}
+                  </p>
+                )}
+
+                {loadingEditFilters && (
+                  <p className="text-xs" style={{ color: "var(--app-text-muted)" }}>
+                    Loading filters...
+                  </p>
+                )}
+
+                {!loadingEditFilters && editAvailableFilters.length === 0 && (
+                  <p className="text-xs" style={{ color: "var(--app-text-muted)" }}>
+                    No available filters found in `meta.filters`.
+                  </p>
+                )}
+
+                {!loadingEditFilters && editAvailableFilters.length > 0 && (
+                  <div className="space-y-1">
+                    {editAvailableFilters.map((filter) => {
+                      const filterCode = String(filter.filter_code);
+                      const isChecked = editSelectedFilters.includes(filterCode);
+                      const hasDescription = Boolean(filter.description && filter.description.trim().length > 0);
+                      return (
+                        <label
+                          key={filterCode}
+                          className="flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-1 text-sm"
+                          style={{ backgroundColor: isChecked ? "var(--app-surface-muted)" : "transparent" }}
+                        >
+                          <span className="flex min-w-0 items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(event) => applyEditFilterChange(filterCode, event.target.checked)}
+                            />
+                            <span className="truncate">{filter.label || filterCode}</span>
+                          </span>
+                          {hasDescription && (
+                            <InfoModalTrigger
+                              header={filter.label || filterCode}
+                              body={filter.description}
+                              triggerAriaLabel={`Show info for ${filter.label || filterCode}`}
+                              dialogId={`edit-filter-info-dialog-${filterCode}`}
+                              closeButtonLabel="Close filter info"
+                            />
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {isComponentEditMode && menuMode === "columns" && (
+              <div>
+                {loadingEditColumns && (
+                  <p className="text-xs" style={{ color: "var(--app-text-muted)" }}>
+                    Loading columns...
+                  </p>
+                )}
+                {!loadingEditColumns && groupedEditColumns.length === 0 && (
+                  <p className="text-xs" style={{ color: "var(--app-text-muted)" }}>
+                    No columns available for this component.
+                  </p>
+                )}
+                {!loadingEditColumns && groupedEditColumns.length > 0 && (
+                  <div className="space-y-4">
+                    {groupedEditColumns.map(([datasetKey, columns]) => (
+                      <div key={datasetKey}>
+                        <div className="mb-1 text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--app-text-muted)" }}>
+                          {datasetKey}
+                        </div>
+                        <div className="space-y-1">
+                          {columns.map((column) => {
+                            const isChecked = editSelectedColumns.includes(column.key);
+                            return (
+                              <label
+                                key={column.key}
+                                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm"
+                                style={{ backgroundColor: isChecked ? "var(--app-surface-muted)" : "transparent" }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(event) => applyEditColumnChange(column.key, event.target.checked)}
+                                />
+                                <span>{column.column}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {menuMode === "settings" && (
               <div className="space-y-4">
                 <SettingToggle
@@ -786,6 +1418,14 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
             )}
           </div>
         </div>
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize sidebar"
+          onMouseDown={startSidebarResize}
+          className="absolute right-0 top-0 hidden h-full w-2 translate-x-1/2 cursor-col-resize lg:block"
+          style={{ backgroundColor: "transparent" }}
+        />
       </nav>
     </>
   );

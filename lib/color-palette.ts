@@ -19,6 +19,8 @@ type BaseAppColors = {
   white: "#ffffff",
 };
 
+export type AppBaseColorKey = keyof BaseAppColors;
+
 type SemanticThemeColors = {
   background: string;
   foreground: string;
@@ -36,7 +38,7 @@ type SemanticThemeColors = {
 
 type AppThemePalette = BaseAppColors & SemanticThemeColors;
 
-const BASE_STATUS_COLORS: BaseAppColors = {
+export const BASE_APP_COLORS: BaseAppColors = {
   green: "#22c55e",
   greenDark: "#15803d",
   yellow: "#facc15",
@@ -57,8 +59,10 @@ const BASE_STATUS_COLORS: BaseAppColors = {
   white: "#ffffff",
 };
 
+export const BASE_APP_COLOR_KEYS = Object.keys(BASE_APP_COLORS) as AppBaseColorKey[];
+
 export const LIGHT_APP_COLORS: AppThemePalette = {
-  ...BASE_STATUS_COLORS,
+  ...BASE_APP_COLORS,
   background: "#ffffff",
   foreground: "#111827",
   surface: "#ffffff",
@@ -74,7 +78,7 @@ export const LIGHT_APP_COLORS: AppThemePalette = {
 };
 
 export const DARK_APP_COLORS: AppThemePalette = {
-  ...BASE_STATUS_COLORS,
+  ...BASE_APP_COLORS,
   background: "#09090b",
   foreground: "#f4f4f5",
   surface: "#18181b",

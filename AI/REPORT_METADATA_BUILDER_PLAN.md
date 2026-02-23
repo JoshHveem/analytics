@@ -1,78 +1,88 @@
 # Report Metadata Builder Plan
 
 ## Goals
-- Make report query generation metadata-driven.
-- Eliminate duplicate maintenance between API SQL and dependency docs.
-- Let analysts/admins see if a report already uses a table before requesting a new one.
-- Keep existing secure API standards (`withSecureReport`, RLS, anonymize) intact.
+- Build reports from server-side metadata only (no route-local SQL definitions).
+- Treat components as reusable UI/query templates with defaults.
+- Keep report-specific data binding and behavior in report-level metadata.
+- Preserve secure runtime standards (`withSecureReport`, RLS context validation, anonymization).
 
-## Metadata Model (single source of truth)
-- `meta.report_dependencies`: source graph per report (base + join nodes).
-- `meta.report_dependency_joins`: join predicates between aliases.
-- `meta.report_dependency_fields`: output fields and shape.
-- `meta.report_dependency_filter_bindings`: filter-to-column predicates.
-- `meta.report_dependency_grouping`: optional group-by definitions.
-- `meta.report_dependency_sorting`: optional default sort definitions.
-- `meta.v_report_table_usage`: table lineage view (reports by table).
+## Metadata Model (Current)
+- `meta.components`
+  - `component_code`
+  - `name`
+  - `description`
+  - `default_settings` (or legacy `settings`)
+  - `is_active`
+- `meta.report_components`
+  - `report_id`
+  - `component_code`
+  - `settings` (instance overrides)
+  - `spec` (data binding: includes `sources[]` with exactly one `is_base=true`, plus joins/fields/sort/group rules)
+  - `is_active`
 
-## Query Builder Contract
+## Runtime Contract
 For a report route, runtime should:
-1. Resolve `report_id` from `meta.reports`.
-2. Load active dependency graph (`base` + `join` rows).
-3. Build `FROM ... JOIN ... ON ...` from dependency tables.
-4. Build `SELECT` from `meta.report_dependency_fields`.
-5. Build `WHERE` from active filter bindings + user params.
-6. Apply `GROUP BY` / `ORDER BY` from metadata tables.
-7. Execute inside `withSecureReport`; anonymize output rows before response.
+1. Load report + active component attachment from metadata (`meta.reports` + `meta.report_components`).
+2. Build and execute dataset query strictly from `meta.report_components.spec` (with safe validation).
+3. Apply `withSecureReport` protections and anonymization before returning rows.
+4. Return optional debug metadata (`selected_columns`, `compiled_sql_preview`, resolved settings).
+
+This intentionally avoids report-specific or dataset-specific API endpoints.
+
+## Spec Ownership Rules
+- `meta.components` defines reusable defaults and display metadata only.
+- `meta.report_components.spec` defines table-level data wiring for that specific report instance.
+- `meta.report_components.settings` defines per-report behavior overrides (pagination, schema overrides, UI options, etc.).
+- No raw SQL fragments are accepted from client input.
+- Base table is resolved only from `spec.sources[]` where `is_base=true` (exactly one required).
 
 ## Guardrails
-- Only allow whitelisted operators in metadata (`=`, `!=`, `in`, `ilike`, etc.).
-- Validate source schema/table/column references against `information_schema` before execution.
-- Require exactly one active `base` source per report.
-- Reject dangling join aliases.
-- Keep `execution_mode='custom'` fallback for complex legacy reports.
+- Only allow whitelisted operators (`=`, `!=`, `in`, `between`, `>=`, `<=`, etc. per component type).
+- Require exactly one `spec.sources[]` row with `is_base=true` in each active table spec.
+- Reject joins using unknown aliases/keys or keys missing from either table.
+- Validate all identifiers with strict safe identifier rules.
+- Keep `execution_mode='custom'` fallback for legacy exceptions while migrating.
 
-## UI Plan: Report Metadata Builder
+## UI Plan: Metadata Builder
 
 ### Route
 - `app/reports/admin/metadata/page.tsx` (admin-only)
 
 ### UX Layout
-- Left rail: report list + status (`draft`, `published`, `disabled`).
-- Main workspace tabs:
-  1. `Definition`
-  2. `Sources & Joins`
-  3. `Fields`
-  4. `Filters`
-  5. `Grouping & Sort`
-  6. `Preview`
+- Left rail: reports with status (`draft`, `published`, `disabled`).
+- Main tabs:
+  1. `Report Definition`
+  2. `Component Instances`
+  3. `Spec Builder`
+  4. `Settings`
+  5. `Preview`
 
 ### Tab Details
-1. Definition
+1. Report Definition
 - Edit `title`, `route`, `category`, `description`, active flag.
 
-2. Sources & Joins
-- Add base source (schema/table/alias).
-- Add joined sources (join type, join target alias, priority).
-- Add join predicates (`left_alias.left_col operator right_alias.right_col`).
-- Real-time graph preview (alias nodes + joins).
+2. Component Instances
+- Attach/detach active `component_code` rows to a report.
+- Toggle `is_active` and ordering (if ordering column exists in schema).
 
-3. Fields
-- Add output fields from source aliases.
-- Configure output key/label/type/order/aggregate/sortable/filterable.
-- Show duplicate output key validation.
+3. Spec Builder
+- Edit `report_components.spec`:
+  - base dataset
+  - joins and join keys
+  - select fields/aliases
+  - filter bindings
+  - sort/group definitions
 
-4. Filters
-- Bind existing `meta.filters.filter_code` to source alias + column + operator.
-- Optional transforms (identity/csv_to_array/lowercase/trim).
+4. Settings
+- Show effective settings diff:
+  - component defaults
+  - report overrides
+  - merged result preview
 
-5. Grouping & Sort
-- Pick output keys for group and default sort direction/order.
-
-6. Preview
+5. Preview
 - `Generated SQL` preview (read-only).
-- `Sample rows` preview (small limit, secure context).
-- `Dependency summary` (tables used + reports already using them).
+- `Sample rows` (secured context).
+- `Table lineage` summary (what tables are used and where else they are used).
 
 ## API Endpoints for Builder
 - `GET /api/reports/admin/metadata/catalog`
@@ -83,13 +93,13 @@ For a report route, runtime should:
 
 All admin endpoints should:
 - require authenticated admin user
-- run with same DB user context protections
-- avoid raw SQL input from client
+- run inside existing DB user-context protections
+- reject raw SQL payloads
 
 ## Rollout Sequence
-1. Apply `tools/sql/meta_report_dependencies.sql`.
-2. Backfill dependencies for 2-3 existing reports.
-3. Build read-only table lineage UI first (reports-by-table).
-4. Build metadata editor tabs next.
-5. Switch one simple report to metadata-driven execution.
-6. Iterate until custom endpoints are only edge-case exceptions.
+1. Finalize `meta.components` + `meta.report_components` schema contract.
+2. Backfill 1-2 simple reports into `report_components.spec/settings`.
+3. Switch `/api/reports/components/table` to compile from `report_components.spec`.
+4. Add metadata editor read-only mode first (catalog + preview).
+5. Enable write mode (update settings/spec with validation).
+6. Migrate legacy custom report routes incrementally.

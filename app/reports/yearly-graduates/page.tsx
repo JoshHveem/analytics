@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ReportHeader } from "../_components/ReportHeader";
-import { ReportTable, type ReportTableColumn } from "../_components/ReportTable";
+import { ReportComponentTable, type ReportComponentTableColumn } from "../_components/ReportComponentTable";
 import { ReportContainer } from "../_components/ReportContainer";
 import { MetaChip } from "../_components/MetaChip";
 import { ReportErrorBanner } from "../_components/ReportErrorBanner";
@@ -373,7 +373,7 @@ function ProgramExitStatusPageInner() {
     return segments;
   }, [metrics, whatIfDrops]);
 
-  const activeStudentColumns = useMemo<ReportTableColumn<StudentRow>[]>(() => {
+  const activeStudentColumns = useMemo<ReportComponentTableColumn<StudentRow>[]>(() => {
     return [
       {
         id: "name",
@@ -414,7 +414,7 @@ function ProgramExitStatusPageInner() {
     ];
   }, []);
 
-  const exitedGraduateColumns = useMemo<ReportTableColumn<StudentRow>[]>(() => {
+  const exitedGraduateColumns = useMemo<ReportComponentTableColumn<StudentRow>[]>(() => {
     return [
       {
         id: "name",
@@ -455,7 +455,7 @@ function ProgramExitStatusPageInner() {
     ];
   }, []);
 
-  const exitedNonGraduateColumns = useMemo<ReportTableColumn<StudentRow>[]>(() => {
+  const exitedNonGraduateColumns = useMemo<ReportComponentTableColumn<StudentRow>[]>(() => {
     return [
       {
         id: "name",
@@ -658,7 +658,7 @@ function ProgramExitStatusPageInner() {
             <h4 className="text-sm font-semibold">Active students</h4>
             <MetaChip>Rows: {activeRows.length}</MetaChip>
           </div>
-          <ReportTable
+          <ReportComponentTable
             rows={activeRows}
             columns={activeStudentColumns}
             defaultSort={{ columnId: "end_date", direction: "asc" }}
@@ -679,7 +679,7 @@ function ProgramExitStatusPageInner() {
                 >
                   Graduates
                 </div>
-                <ReportTable
+                <ReportComponentTable
                   rows={exitedGreenRows}
                   columns={exitedGraduateColumns}
                   defaultSort={{ columnId: "name", direction: "asc" }}
@@ -697,7 +697,7 @@ function ProgramExitStatusPageInner() {
                 >
                   Non-graduate Exiters
                 </div>
-                <ReportTable
+                <ReportComponentTable
                   rows={exitedGrayRows}
                   columns={exitedNonGraduateColumns}
                   defaultSort={{ columnId: "name", direction: "asc" }}

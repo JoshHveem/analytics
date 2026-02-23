@@ -75,7 +75,7 @@ export const REPORT_TEMPLATE_CHECKLIST = [
   "Load report metadata via /api/reports/config?route=<route> and keep graceful fallback title/description.",
   "Load rows via /api/reports/<route>?include_meta=1&include_rows=1&anonymize=0|1 plus active filters.",
   "Listen for analytics:anonymize-change and refetch report rows.",
-  "Use ReportHeader, ReportContainer, ReportErrorBanner, MetaChip, and ReportTable for styling consistency.",
+  "Use ReportHeader, ReportContainer, ReportErrorBanner, MetaChip, and ReportComponentTable for styling consistency.",
   "Use stable row keys in tables (prefer sis_user_id + relevant dimensions).",
   "Show explicit loading state and empty state text.",
   "Treat API failures as user-visible errors without crashing page render.",
@@ -88,7 +88,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ReportHeader } from "../_components/ReportHeader";
 import { ReportContainer } from "../_components/ReportContainer";
-import { ReportTable, type ReportTableColumn } from "../_components/ReportTable";
+import { ReportComponentTable, type ReportComponentTableColumn } from "../_components/ReportComponentTable";
 import { ReportErrorBanner } from "../_components/ReportErrorBanner";
 import { MetaChip } from "../_components/MetaChip";
 import {
@@ -162,7 +162,7 @@ function ReportPageInner() {
     }
   }
 
-  const columns = useMemo<ReportTableColumn<Row>[]>(() => {
+  const columns = useMemo<ReportComponentTableColumn<Row>[]>(() => {
     return [
       // TODO: define table columns
       { id: "sis_user_id", header: "SIS User", accessor: "sis_user_id", columnType: "text" },
@@ -181,7 +181,7 @@ function ReportPageInner() {
         {loading ? (
           <div className="text-sm" style={{ color: "var(--app-text-muted)" }}>Loading...</div>
         ) : (
-          <ReportTable
+          <ReportComponentTable
             rows={rows}
             columns={columns}
             defaultSort={{ columnId: "sis_user_id", direction: "asc" }}

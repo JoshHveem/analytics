@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ReportHeader } from "../_components/ReportHeader";
-import { ReportTable, type ReportTableColumn } from "../_components/ReportTable";
+import { ReportComponentTable, type ReportComponentTableColumn } from "../_components/ReportComponentTable";
 import { ReportContainer } from "../_components/ReportContainer";
 import { MetaChip } from "../_components/MetaChip";
 import { ReportErrorBanner } from "../_components/ReportErrorBanner";
@@ -166,7 +166,7 @@ function InstructorMetricsPageInner() {
     return totals;
   }, [safeRows]);
 
-  const columns = useMemo<ReportTableColumn<InstructorMetricRow>[]>(() => {
+  const columns = useMemo<ReportComponentTableColumn<InstructorMetricRow>[]>(() => {
     return [
       {
         id: "instructor",
@@ -311,7 +311,7 @@ function InstructorMetricsPageInner() {
         )}
 
         {safeRows.length > 0 && (
-          <ReportTable
+          <ReportComponentTable
             rows={safeRows}
             columns={columns}
             defaultSort={{ columnId: "instructor", direction: "asc" }}

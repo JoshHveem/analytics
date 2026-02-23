@@ -18,7 +18,7 @@ type PillColumnConfig<T> = {
   getTone?: (value: unknown, row: T) => PillTone;
 };
 
-export type ReportTableColumn<T> = {
+export type ReportComponentTableColumn<T> = {
   id: string;
   header: string;
   accessor?: keyof T;
@@ -33,15 +33,19 @@ export type ReportTableColumn<T> = {
   cellClassName?: string;
 };
 
-type ReportTableProps<T> = {
+type ReportComponentTableProps<T> = {
   rows: T[];
-  columns: ReportTableColumn<T>[];
+  columns: ReportComponentTableColumn<T>[];
   defaultSort: {
     columnId: string;
     direction?: SortDirection;
   };
   rowKey: (row: T, index: number) => string;
   emptyText?: string;
+  showHeaderWhenEmpty?: boolean;
+  headerAction?: (column: ReportComponentTableColumn<T>) => React.ReactNode;
+  allowColumnReorder?: boolean;
+  onColumnReorder?: (sourceColumnId: string, targetColumnId: string) => void;
   rowClassName?: (row: T, index: number) => string;
 };
 
@@ -80,21 +84,21 @@ function formatText(value: CellValue): string {
   return String(value);
 }
 
-function getRawValue<T>(row: T, column: ReportTableColumn<T>): unknown {
+function getRawValue<T>(row: T, column: ReportComponentTableColumn<T>): unknown {
   if (!column.accessor) {
     return undefined;
   }
   return row[column.accessor];
 }
 
-function getSortValue<T>(row: T, index: number, column: ReportTableColumn<T>): unknown {
+function getSortValue<T>(row: T, index: number, column: ReportComponentTableColumn<T>): unknown {
   if (column.sortValue) {
     return column.sortValue(row, index);
   }
   return getRawValue(row, column);
 }
 
-function isSortableColumn<T>(column: ReportTableColumn<T>): boolean {
+function isSortableColumn<T>(column: ReportComponentTableColumn<T>): boolean {
   if (typeof column.sortable === "boolean") {
     return column.sortable;
   }
@@ -105,7 +109,7 @@ function defaultSortDirection(direction: SortDirection | undefined): SortDirecti
   return direction === "desc" ? "desc" : "asc";
 }
 
-function toComparableValue<T>(value: unknown, column: ReportTableColumn<T>): number | string | null {
+function toComparableValue<T>(value: unknown, column: ReportComponentTableColumn<T>): number | string | null {
   if (value === null || value === undefined || value === "") {
     return null;
   }
@@ -165,7 +169,7 @@ function isSensitiveColumn(columnId: string): boolean {
   return normalized === "name" || normalized === "instructor" || normalized === "sis_user_id" || normalized.includes("user");
 }
 
-function renderCell<T>(row: T, index: number, column: ReportTableColumn<T>, anonymize: boolean): React.ReactNode {
+function renderCell<T>(row: T, index: number, column: ReportComponentTableColumn<T>, anonymize: boolean): React.ReactNode {
   const shouldMask = anonymize && isSensitiveColumn(column.id);
   if (shouldMask) {
     return "Hidden";
@@ -214,15 +218,21 @@ function renderCell<T>(row: T, index: number, column: ReportTableColumn<T>, anon
   return formatText(raw as CellValue);
 }
 
-export function ReportTable<T>({
+export function ReportComponentTable<T>({
   rows,
   columns,
   defaultSort,
   rowKey,
   emptyText = "No rows found.",
+  showHeaderWhenEmpty = false,
+  headerAction,
+  allowColumnReorder = false,
+  onColumnReorder,
   rowClassName,
-}: ReportTableProps<T>) {
+}: ReportComponentTableProps<T>) {
   const [anonymize, setAnonymize] = useState(false);
+  const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
+  const [dropColumnId, setDropColumnId] = useState<string | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -285,8 +295,11 @@ export function ReportTable<T>({
     });
   }, [activeSortState, columns, rows]);
 
-  function toggleSort(column: ReportTableColumn<T>) {
+  function toggleSort(column: ReportComponentTableColumn<T>) {
     if (!isSortableColumn(column)) {
+      return;
+    }
+    if (draggedColumnId) {
       return;
     }
 
@@ -301,7 +314,53 @@ export function ReportTable<T>({
     });
   }
 
-  if (rows.length === 0) {
+  const columnReorderEnabled = allowColumnReorder && typeof onColumnReorder === "function";
+
+  function handleHeaderDragStart(event: React.DragEvent<HTMLElement>, columnId: string) {
+    if (!columnReorderEnabled) {
+      return;
+    }
+    setDraggedColumnId(columnId);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", columnId);
+  }
+
+  function handleHeaderDragOver(event: React.DragEvent<HTMLElement>, columnId: string) {
+    if (!columnReorderEnabled) {
+      return;
+    }
+    if (!draggedColumnId || draggedColumnId === columnId) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (dropColumnId !== columnId) {
+      setDropColumnId(columnId);
+    }
+  }
+
+  function handleHeaderDrop(event: React.DragEvent<HTMLElement>, targetColumnId: string) {
+    if (!columnReorderEnabled) {
+      return;
+    }
+    event.preventDefault();
+
+    const sourceColumnId = draggedColumnId || event.dataTransfer.getData("text/plain");
+    setDraggedColumnId(null);
+    setDropColumnId(null);
+
+    if (!sourceColumnId || sourceColumnId === targetColumnId) {
+      return;
+    }
+    onColumnReorder(sourceColumnId, targetColumnId);
+  }
+
+  function handleHeaderDragEnd() {
+    setDraggedColumnId(null);
+    setDropColumnId(null);
+  }
+
+  if (rows.length === 0 && !showHeaderWhenEmpty) {
     return (
       <div className="text-sm" style={{ color: "var(--app-text-muted)" }}>
         {emptyText}
@@ -310,53 +369,79 @@ export function ReportTable<T>({
   }
 
   return (
-    <div className="overflow-auto">
+    <div className="max-h-[80vh] overflow-auto">
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="text-left" style={{ color: "var(--app-text-strong)" }}>
-            {columns.map((column) => (
-              <th
-                key={column.id}
-                className={`border-b p-2 ${column.headerClassName ?? ""}`}
-                style={{ borderColor: "var(--app-border)" }}
-              >
-                {isSortableColumn(column) ? (
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 text-left"
-                    style={{ color: "var(--app-text-strong)" }}
-                    onClick={() => toggleSort(column)}
-                    aria-label={`Sort by ${column.header}`}
+            {columns.map((column) => {
+                const isDropTarget =
+                  columnReorderEnabled && dropColumnId === column.id && draggedColumnId !== column.id;
+                const isDragging = columnReorderEnabled && draggedColumnId === column.id;
+                return (
+                  <th
+                    key={column.id}
+                    className={`border-b p-2 ${column.headerClassName ?? ""}`}
+                    style={{
+                      borderColor: isDropTarget ? "var(--app-control-track-active)" : "var(--app-border)",
+                      backgroundColor: isDragging ? "var(--app-surface-muted)" : undefined,
+                    }}
+                    draggable={columnReorderEnabled}
+                    onDragStart={(event) => handleHeaderDragStart(event, column.id)}
+                    onDragOver={(event) => handleHeaderDragOver(event, column.id)}
+                    onDrop={(event) => handleHeaderDrop(event, column.id)}
+                    onDragEnd={handleHeaderDragEnd}
                   >
-                    <span>{column.header}</span>
-                    <span className="text-[10px] leading-none" style={{ color: "var(--app-text-muted)" }}>
-                      {activeSortState.columnId === column.id ? (activeSortState.direction === "asc" ? "^" : "v") : ""}
-                    </span>
-                  </button>
-                ) : (
-                  column.header
-                )}
-              </th>
-            ))}
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        {isSortableColumn(column) ? (
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 text-left"
+                            style={{ color: "var(--app-text-strong)" }}
+                            onClick={() => toggleSort(column)}
+                            aria-label={`Sort by ${column.header}`}
+                          >
+                            <span>{column.header}</span>
+                            <span className="text-[10px] leading-none" style={{ color: "var(--app-text-muted)" }}>
+                              {activeSortState.columnId === column.id ? (activeSortState.direction === "asc" ? "^" : "v") : ""}
+                            </span>
+                          </button>
+                        ) : (
+                          column.header
+                        )}
+                      </div>
+                      {headerAction ? <div className="shrink-0">{headerAction(column)}</div> : null}
+                    </div>
+                  </th>
+                );
+              })}
           </tr>
         </thead>
         <tbody>
-          {sortedRows.map(({ row, index: originalIndex }, rowIndex) => (
-            <tr
-              key={rowKey(row, originalIndex)}
-              className={rowClassName ? rowClassName(row, rowIndex) : ""}
-              style={{
-                backgroundColor: rowIndex % 2 === 0 ? "var(--app-surface)" : "var(--app-surface-muted)",
-                color: "var(--app-text-strong)",
-              }}
-            >
-              {columns.map((column) => (
-                <td key={column.id} className={`p-2 ${column.cellClassName ?? ""}`}>
-                  {renderCell(row, originalIndex, column, anonymize)}
-                </td>
-              ))}
+          {rows.length === 0 && (
+            <tr style={{ color: "var(--app-text-muted)" }}>
+              <td className="p-3 text-sm" colSpan={Math.max(columns.length, 1)}>
+                {emptyText}
+              </td>
             </tr>
-          ))}
+          )}
+          {rows.length > 0 &&
+            sortedRows.map(({ row, index: originalIndex }, rowIndex) => (
+              <tr
+                key={rowKey(row, originalIndex)}
+                className={rowClassName ? rowClassName(row, rowIndex) : ""}
+                style={{
+                  backgroundColor: rowIndex % 2 === 0 ? "var(--app-surface)" : "var(--app-surface-muted)",
+                  color: "var(--app-text-strong)",
+                }}
+              >
+                {columns.map((column) => (
+                  <td key={column.id} className={`p-2 ${column.cellClassName ?? ""}`}>
+                    {renderCell(row, originalIndex, column, anonymize)}
+                  </td>
+                ))}
+              </tr>
+            ))}
         </tbody>
       </table>
     </div>

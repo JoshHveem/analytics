@@ -191,7 +191,7 @@ export async function GET(request: Request) {
 
     const payload = await withSecureReport(
       request,
-      "public-table-relationships",
+      "table-relationships",
       async ({ db }) => {
         const tables = await getTableSummaries(db);
         const relationships = await getRelationships(db);
@@ -218,7 +218,7 @@ export async function GET(request: Request) {
     if (e instanceof HttpError) {
       return NextResponse.json(e.payload, { status: e.status });
     }
-    console.error("Public table relationships report error:", e);
+    console.error("Table relationships report error:", e);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

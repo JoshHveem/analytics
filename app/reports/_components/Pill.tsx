@@ -1,13 +1,14 @@
-import { APP_COLORS, withAlpha } from "@/lib/color-palette";
+import { APP_COLORS, type AppBaseColorKey, withAlpha } from "@/lib/color-palette";
 
-export type PillTone = "neutral" | "success" | "warning" | "danger" | "info";
+type SemanticPillTone = "neutral" | "success" | "warning" | "danger" | "info";
+export type PillTone = SemanticPillTone | AppBaseColorKey;
 
 type PillProps = {
   label: string;
   tone?: PillTone;
 };
 
-const TONE_STYLES: Record<PillTone, { borderColor: string; backgroundColor: string }> = {
+const SEMANTIC_TONE_STYLES: Record<SemanticPillTone, { borderColor: string; backgroundColor: string }> = {
   neutral: {
     borderColor: APP_COLORS.darkGray,
     backgroundColor: withAlpha(APP_COLORS.lightGray, 0.5),
@@ -30,11 +31,25 @@ const TONE_STYLES: Record<PillTone, { borderColor: string; backgroundColor: stri
   },
 };
 
+function resolveToneStyle(tone: PillTone): { borderColor: string; backgroundColor: string } {
+  if (tone in SEMANTIC_TONE_STYLES) {
+    return SEMANTIC_TONE_STYLES[tone as SemanticPillTone];
+  }
+  if (tone in APP_COLORS) {
+    const color = APP_COLORS[tone as keyof typeof APP_COLORS];
+    return {
+      borderColor: color,
+      backgroundColor: withAlpha(color, 0.2),
+    };
+  }
+  return SEMANTIC_TONE_STYLES.neutral;
+}
+
 export function Pill({ label, tone = "neutral" }: PillProps) {
   return (
     <span
       className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium"
-      style={{ ...TONE_STYLES[tone], color: "var(--app-text-strong)" }}
+      style={{ ...resolveToneStyle(tone), color: "var(--app-text-strong)" }}
     >
       {label}
     </span>

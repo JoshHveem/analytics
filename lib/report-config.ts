@@ -23,6 +23,30 @@ function normalizeRoute(route: string): string {
   return String(route ?? "").trim().replace(/^\/+|\/+$/g, "");
 }
 
+const SAFE_IDENT = /^[a-z_][a-z0-9_]*$/;
+
+function normalizeFilterCode(args: {
+  filterCode: string | null;
+  filterType: string | null;
+  column: string | null;
+}): string {
+  const column = String(args.column ?? "").trim().toLowerCase();
+  if (column && SAFE_IDENT.test(column)) {
+    return column;
+  }
+
+  const filterType = String(args.filterType ?? "").trim().toLowerCase();
+  if (filterType && SAFE_IDENT.test(filterType) && (filterType.endsWith("_code") || filterType.endsWith("_id"))) {
+    return filterType;
+  }
+
+  const filterCode = String(args.filterCode ?? "").trim().toLowerCase();
+  if (filterCode === "program") {
+    throw new Error('Invalid filter_code "program"; use "program_code"');
+  }
+  return filterCode;
+}
+
 export async function getReportConfigByRoute(route: string): Promise<ReportConfig | null> {
   const normalizedRoute = normalizeRoute(route);
   if (!normalizedRoute) {
@@ -41,7 +65,7 @@ export async function getReportConfigByRoute(route: string): Promise<ReportConfi
       SELECT id, title, category, route, description
       FROM meta.reports
       WHERE is_active = true
-        AND trim(both '/' from route) = $1
+        AND (trim(both '/' from route) = $1 OR id = $1)
       LIMIT 1
       `,
       [normalizedRoute]
@@ -94,7 +118,11 @@ export async function getReportConfigByRoute(route: string): Promise<ReportConfi
         table: string | null;
         column: string | null;
       }) => ({
-        filter_code: String(row.filter_code),
+        filter_code: normalizeFilterCode({
+          filterCode: row.filter_code,
+          filterType: row.type,
+          column: row.column,
+        }),
         type: String(row.type ?? "select"),
         default_value: row.default_value ?? null,
         label: String(row.label ?? row.filter_code),

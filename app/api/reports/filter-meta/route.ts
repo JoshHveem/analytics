@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { HttpError } from "@/lib/auth";
-import { withSecureReport } from "@/lib/secure-report";
-import { buildTableComponentQuery } from "@/lib/report-component-table";
+import { withAuthedDb } from "@/lib/authed-db";
 import { type Queryable } from "@/lib/db";
 
 type ReportFilterDefinition = {
@@ -13,10 +12,6 @@ type ReportFilterDefinition = {
 
 const SAFE_IDENT = /^[a-z_][a-z0-9_]*$/;
 
-function parseBool(value: string | null): boolean {
-  return value === "1" || value === "true";
-}
-
 function assertSafeIdentifier(value: string, kind: string): string {
   const cleaned = String(value ?? "").trim();
   if (!SAFE_IDENT.test(cleaned)) {
@@ -27,6 +22,13 @@ function assertSafeIdentifier(value: string, kind: string): string {
 
 function quoteIdentifier(value: string): string {
   return `"${value.replace(/"/g, "\"\"")}"`;
+}
+
+function splitFilterValues(value: string | null | undefined): string[] {
+  return String(value ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
 }
 
 function pluralMetaKey(filterCode: string): string {
@@ -151,7 +153,26 @@ async function tableHasColumn(db: Queryable, schema: string, table: string, colu
   return Boolean(rows[0]?.found);
 }
 
-async function loadReportFilterDefinitions(db: Queryable, route: string): Promise<ReportFilterDefinition[]> {
+async function loadReportFilterDefinitionsById(
+  db: Queryable,
+  reportId: string
+): Promise<ReportFilterDefinition[]> {
+  const reportExists = await db.query<{ found: boolean }>(
+    `
+    SELECT EXISTS (
+      SELECT 1
+      FROM meta.reports
+      WHERE id = $1
+        AND COALESCE(is_active, true) = true
+    ) AS found
+    `,
+    [reportId]
+  );
+
+  if (!reportExists.rows[0]?.found) {
+    throw new HttpError(404, { error: "Report not found" });
+  }
+
   const { rows } = await db.query<{
     filter_code: string;
     type: string | null;
@@ -164,16 +185,13 @@ async function loadReportFilterDefinitions(db: Queryable, route: string): Promis
       COALESCE(rf.type, f.type, 'select') AS type,
       f."table" AS table,
       f."column" AS column
-    FROM meta.reports r
-    INNER JOIN meta.report_filters rf
-      ON rf.report_id = r.id
+    FROM meta.report_filters rf
     LEFT JOIN meta.filters f
       ON f.filter_code = rf.filter_code
-    WHERE COALESCE(r.is_active, true) = true
-      AND (trim(both '/' from r.route) = $1 OR r.id = $1)
+    WHERE rf.report_id = $1
     ORDER BY rf.filter_code
     `,
-    [route]
+    [reportId]
   );
 
   const deduped = new Map<string, ReportFilterDefinition>();
@@ -192,7 +210,7 @@ async function loadReportFilterDefinitions(db: Queryable, route: string): Promis
     const existing = deduped.get(filterCode);
     if (existing) {
       if (!existing.sourceSchema && resolvedTableRef?.sourceSchema) {
-        existing.sourceSchema = resolvedTableRef?.sourceSchema ?? null;
+        existing.sourceSchema = resolvedTableRef.sourceSchema;
       }
       if (!existing.sourceTable && resolvedTableRef?.sourceTable) {
         existing.sourceTable = resolvedTableRef.sourceTable;
@@ -217,8 +235,9 @@ async function loadReportFilterDefinitions(db: Queryable, route: string): Promis
 async function optionsForFilterDefinition(args: {
   db: Queryable;
   filter: ReportFilterDefinition;
+  selected: Record<string, string | null>;
 }): Promise<unknown[]> {
-  const { db, filter } = args;
+  const { db, filter, selected } = args;
   if (!filter.sourceSchema || !filter.sourceTable || !filter.sourceColumn) {
     return [];
   }
@@ -226,9 +245,26 @@ async function optionsForFilterDefinition(args: {
   const schema = assertSafeIdentifier(filter.sourceSchema, "source schema");
   const table = assertSafeIdentifier(filter.sourceTable, "filter source table");
   const column = assertSafeIdentifier(filter.sourceColumn, "filter source column");
-
   if (!(await tableHasColumn(db, schema, table, column))) {
     return [];
+  }
+
+  const whereClauses: string[] = [`t.${quoteIdentifier(column)} IS NOT NULL`];
+  const values: string[] = [];
+  const selectedAcademicYearValues = splitFilterValues(selected.academic_year);
+  const supportsAcademicYear = await tableHasColumn(db, schema, table, "academic_year");
+  if (selectedAcademicYearValues.length > 0 && supportsAcademicYear && filter.filterCode !== "academic_year") {
+    if (selectedAcademicYearValues.length === 1) {
+      values.push(selectedAcademicYearValues[0]);
+      whereClauses.push(`t.${quoteIdentifier("academic_year")} = $${values.length}`);
+    } else {
+      const placeholders: string[] = [];
+      for (const year of selectedAcademicYearValues) {
+        values.push(year);
+        placeholders.push(`$${values.length}`);
+      }
+      whereClauses.push(`t.${quoteIdentifier("academic_year")} IN (${placeholders.join(", ")})`);
+    }
   }
 
   const nameColumn = column.endsWith("_code") ? column.replace(/_code$/, "_name") : "";
@@ -240,9 +276,10 @@ async function optionsForFilterDefinition(args: {
         t.${quoteIdentifier(column)} AS ${quoteIdentifier(column)},
         t.${quoteIdentifier(nameColumn)} AS ${quoteIdentifier(nameColumn)}
       FROM ${quoteIdentifier(schema)}.${quoteIdentifier(table)} t
-      WHERE t.${quoteIdentifier(column)} IS NOT NULL
+      WHERE ${whereClauses.join(" AND ")}
       ORDER BY t.${quoteIdentifier(nameColumn)}, t.${quoteIdentifier(column)}
-      `
+      `,
+      values
     );
 
     return rows
@@ -258,9 +295,10 @@ async function optionsForFilterDefinition(args: {
     SELECT DISTINCT
       t.${quoteIdentifier(column)} AS value
     FROM ${quoteIdentifier(schema)}.${quoteIdentifier(table)} t
-    WHERE t.${quoteIdentifier(column)} IS NOT NULL
+    WHERE ${whereClauses.join(" AND ")}
     ORDER BY value
-    `
+    `,
+    values
   );
 
   return rows
@@ -268,107 +306,59 @@ async function optionsForFilterDefinition(args: {
     .filter((value) => value.length > 0);
 }
 
-async function buildFilterMetaFromReportFilters(args: {
+async function buildFilterMeta(args: {
   db: Queryable;
   searchParams: URLSearchParams;
   filters: ReportFilterDefinition[];
-}) {
+}): Promise<Record<string, unknown>> {
   const { db, searchParams, filters } = args;
   const selected: Record<string, string | null> = {};
   for (const filter of filters) {
     selected[filter.filterCode] = String(searchParams.get(filter.filterCode) ?? "").trim() || null;
   }
-  const filterMeta: Record<string, unknown> = { selected };
+  const meta: Record<string, unknown> = { selected };
 
   for (const filter of filters) {
     const options =
       filter.filterCode === "academic_year"
         ? buildAcademicYearOptions()
-        : await optionsForFilterDefinition({
-            db,
-            filter,
-          });
-
+        : await optionsForFilterDefinition({ db, filter, selected });
     const filterCodeKey = filter.filterCode.trim().toLowerCase();
     const pluralKey = pluralMetaKey(filter.filterCode);
-    filterMeta[filterCodeKey] = options;
-    filterMeta[pluralKey] = options;
+    meta[filterCodeKey] = options;
+    meta[pluralKey] = options;
   }
 
-  return filterMeta;
+  return meta;
 }
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
-    const route = String(url.searchParams.get("route") ?? "").trim().replace(/^\/+|\/+$/g, "");
-    const componentCode = String(url.searchParams.get("component_code") ?? "").trim() || undefined;
-    const includeMeta = parseBool(url.searchParams.get("include_meta"));
-    const includeRows = parseBool(url.searchParams.get("include_rows"));
-    const allColumns = parseBool(url.searchParams.get("all_columns"));
-
-    if (!route) {
-      throw new HttpError(400, { error: "Missing required query parameter: route" });
+    const reportId = String(url.searchParams.get("report_id") ?? "").trim();
+    if (!reportId) {
+      throw new HttpError(400, { error: "Missing required query parameter: report_id" });
     }
 
-    const payload = await withSecureReport(
-      request,
-      route,
-      async ({ db, user, anonymizeRows, meta }) => {
-        const normalizedSearch = new URLSearchParams(url.searchParams.toString());
-        const reportFilters = await loadReportFilterDefinitions(db, route);
-        if (allColumns && !user.is_admin) {
-          throw new HttpError(403, { error: "Forbidden" });
-        }
-        const compiled = await buildTableComponentQuery({
-          db,
-          route,
-          searchParams: normalizedSearch,
-          componentCode,
-          filterParams: reportFilters.map((f) => f.filterCode),
-          selectMode: allColumns ? "all_available" : "spec",
-        });
-
-        let rows: Record<string, unknown>[] = [];
-        if (includeRows) {
-          const result = await db.query(compiled.sql, compiled.values);
-          rows = anonymizeRows(result.rows as Record<string, unknown>[]);
-        }
-
-        return {
-          ok: true,
-          count: rows.length,
-          data: rows,
-          meta: includeMeta
-            ? {
-                ...(await buildFilterMetaFromReportFilters({
-                  db,
-                  searchParams: normalizedSearch,
-                  filters: reportFilters,
-                })),
-                ...meta,
-                report_id: compiled.reportId,
-                report_component_id: compiled.reportComponentId,
-                component_code: compiled.componentCode,
-                component_name: compiled.componentName,
-                component_description: compiled.componentDescription,
-                source_schema: compiled.sourceSchema,
-                report_component_settings: compiled.reportSettings,
-                component_settings: compiled.resolvedSettings,
-                selected_columns: compiled.selectedAliases,
-                compiled_sql_preview: compiled.sql,
-              }
-            : undefined,
-        };
-      }
-    );
+    const payload = await withAuthedDb(async ({ db }) => {
+      const filters = await loadReportFilterDefinitionsById(db, reportId);
+      const meta = await buildFilterMeta({
+        db,
+        searchParams: url.searchParams,
+        filters,
+      });
+      return {
+        ok: true,
+        meta,
+      };
+    });
 
     return NextResponse.json(payload);
   } catch (error: unknown) {
     if (error instanceof HttpError) {
       return NextResponse.json(error.payload, { status: error.status });
     }
-    console.error("Table component route error:", error);
+    console.error("Report filter-meta error:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }

@@ -4,6 +4,8 @@ import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from "pg
 declare global {
   // eslint-disable-next-line no-var
   var __pgPool: Pool | undefined;
+  // eslint-disable-next-line no-var
+  var __pgPoolErrorHandlerAttached: boolean | undefined;
 }
 
 export const pool =
@@ -15,6 +17,14 @@ export const pool =
   });
 
 if (process.env.NODE_ENV !== "production") global.__pgPool = pool;
+
+if (!global.__pgPoolErrorHandlerAttached) {
+  pool.on("error", (error: Error) => {
+    // Prevent uncaught exceptions when idle tunnel-backed connections drop.
+    console.error("Unexpected PostgreSQL pool error:", error);
+  });
+  global.__pgPoolErrorHandlerAttached = true;
+}
 
 type DbContext = {
   sis_user_id: string | null;

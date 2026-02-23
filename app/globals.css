@@ -13,6 +13,7 @@
   --app-control-track-active: #18181b;
   --app-control-thumb: #ffffff;
   --app-hover-surface: #f4f4f5;
+  --sidebar-width: 256px;
   --background: var(--app-background, #ffffff);
   --foreground: var(--app-foreground, #171717);
 }

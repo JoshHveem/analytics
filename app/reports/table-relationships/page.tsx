@@ -98,7 +98,7 @@ function SharedFieldPills({ fields }: { fields: string[] }) {
   );
 }
 
-function PublicTableRelationshipsPageInner() {
+function TableRelationshipsPageInner() {
   const searchParams = useSearchParams();
   const [tableRows, setTableRows] = useState<TableSummaryRow[]>(EMPTY_TABLE_ROWS);
   const [keyFields, setKeyFields] = useState<string[]>([]);
@@ -117,7 +117,7 @@ function PublicTableRelationshipsPageInner() {
         anonymize: anonymize ? "1" : "0",
       });
 
-      const res = await fetch(`/api/reports/public-table-relationships?${params.toString()}`);
+      const res = await fetch(`/api/reports/table-relationships?${params.toString()}`);
       const json = (await res.json()) as TableRelationshipResponse;
 
       if (!res.ok) {
@@ -144,7 +144,7 @@ function PublicTableRelationshipsPageInner() {
   );
 
   const { reportTitle, reportDescription, loading, error, rows } = useReportPageData<TableRelationshipRow>({
-    route: "public-table-relationships",
+    route: "table-relationships",
     searchParams,
     initialTitle: "Data Table Relationships",
     initialDescription:
@@ -489,10 +489,10 @@ function PublicTableRelationshipsPageInner() {
   );
 }
 
-export default function PublicTableRelationshipsPage() {
+export default function TableRelationshipsPage() {
   return (
     <ReportPageSuspense title="Data Table Relationships" maxWidthClassName="max-w-6xl">
-      <PublicTableRelationshipsPageInner />
+      <TableRelationshipsPageInner />
     </ReportPageSuspense>
   );
 }
