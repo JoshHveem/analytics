@@ -65,6 +65,7 @@ const PILL_ALLOWED_COLORS = new Set([
   "danger",
   "info",
 ]);
+const BAR_ALLOWED_COLORS = new Set<string>([...BASE_APP_COLOR_KEYS]);
 
 const AUTO_HYDRATION_JOINS: Array<{
   datasetKey: string;
@@ -339,7 +340,7 @@ async function resolveReportComponent(args: {
 
   const row = rows[0];
   if (!row) {
-    throw new HttpError(404, { error: "Report table component not found" });
+    throw new HttpError(404, { error: "Report component not found" });
   }
   const specObject = parseJsonObject(row.spec, "report component spec");
 
@@ -525,6 +526,92 @@ function sanitizeColumnTypes(raw: unknown, selectedKeys: Set<string>): JsonObjec
 
     if (type === "percentage_of_total_bar") {
       normalized[key] = { type };
+      continue;
+    }
+
+    if (type === "conditional_bar") {
+      const threshold = isObjectRecord(valueRaw.threshold) ? valueRaw.threshold : {};
+      const gte = typeof threshold.gte === "number" && Number.isFinite(threshold.gte) ? threshold.gte : undefined;
+      const lte = typeof threshold.lte === "number" && Number.isFinite(threshold.lte) ? threshold.lte : undefined;
+
+      const color = String(valueRaw.color ?? "").trim();
+      const colorElse = String(valueRaw.color_else ?? "").trim();
+      const display =
+        valueRaw.display === "number" || valueRaw.display === "percentage"
+          ? valueRaw.display
+          : "percentage";
+      const fractionDigits =
+        typeof valueRaw.fraction_digits === "number" && Number.isFinite(valueRaw.fraction_digits)
+          ? valueRaw.fraction_digits
+          : undefined;
+      const barMax =
+        typeof valueRaw.bar_max === "number" && Number.isFinite(valueRaw.bar_max) && valueRaw.bar_max > 0
+          ? valueRaw.bar_max
+          : undefined;
+      const valueFromRaw = String(valueRaw.value_from ?? "").trim();
+      const thresholdFromRaw = String(valueRaw.threshold_from ?? "").trim();
+      const labelFromRaw = String(valueRaw.label_from ?? "").trim();
+      const valueFrom = selectedKeys.has(valueFromRaw) ? valueFromRaw : undefined;
+      const thresholdFrom = selectedKeys.has(thresholdFromRaw) ? thresholdFromRaw : undefined;
+      const labelFrom = selectedKeys.has(labelFromRaw) ? labelFromRaw : undefined;
+      const rawConditions = Array.isArray(valueRaw.conditions) ? valueRaw.conditions : [];
+      const conditions = rawConditions
+        .filter((item): item is JsonObject => isObjectRecord(item))
+        .map((item) => {
+          const include = item.include !== false;
+          const ruleColor = String(item.color ?? "").trim();
+          const allRaw = Array.isArray(item.all) ? item.all : [];
+          const all = allRaw
+            .filter((clause): clause is JsonObject => isObjectRecord(clause))
+            .map((clause) => {
+              const field = String(clause.field ?? "").trim();
+              const op = String(clause.op ?? "").trim().toLowerCase() === "neq" ? "neq" : "eq";
+              const value = String(clause.value ?? "");
+              if (!field || !selectedKeys.has(field)) {
+                return null;
+              }
+              return { field, op, value };
+            })
+            .filter((clause): clause is { field: string; op: "eq" | "neq"; value: string } => clause !== null);
+          if (all.length === 0) {
+            return null;
+          }
+          return {
+            include,
+            ...(BAR_ALLOWED_COLORS.has(ruleColor) ? { color: ruleColor } : {}),
+            all,
+          };
+        })
+        .filter(
+          (
+            item
+          ): item is {
+            include: boolean;
+            color?: string;
+            all: Array<{ field: string; op: "eq" | "neq"; value: string }>;
+          } => item !== null
+        );
+
+      normalized[key] = {
+        type,
+        ...((gte !== undefined || lte !== undefined)
+          ? {
+              threshold: {
+                ...(gte !== undefined ? { gte } : {}),
+                ...(lte !== undefined ? { lte } : {}),
+              },
+            }
+          : {}),
+        ...(BAR_ALLOWED_COLORS.has(color) ? { color } : {}),
+        ...(BAR_ALLOWED_COLORS.has(colorElse) ? { color_else: colorElse } : {}),
+        display,
+        ...(fractionDigits !== undefined ? { fraction_digits: fractionDigits } : {}),
+        ...(barMax !== undefined ? { bar_max: barMax } : {}),
+        ...(valueFrom ? { value_from: valueFrom } : {}),
+        ...(thresholdFrom ? { threshold_from: thresholdFrom } : {}),
+        ...(labelFrom ? { label_from: labelFrom } : {}),
+        ...(conditions.length > 0 ? { conditions } : {}),
+      };
       continue;
     }
 

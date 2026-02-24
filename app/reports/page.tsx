@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import Link from "next/link";
 import { getActiveReportCategories } from "@/lib/report-catalog";
 import { ReportContainer } from "./_components/ReportContainer";
+import NewReportButton from "./_components/NewReportButton";
 
 export default async function ReportsPage() {
   const user = await requireAuth();
@@ -10,7 +11,10 @@ export default async function ReportsPage() {
 
   return (
     <ReportContainer padding="lg">
-      <h1 className="text-2xl font-bold">Reports</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Reports</h1>
+        {user.is_admin && <NewReportButton />}
+      </div>
       <p className="mt-2" style={{ color: "var(--app-text-muted)" }}>
         Welcome {user.display_name}
       </p>

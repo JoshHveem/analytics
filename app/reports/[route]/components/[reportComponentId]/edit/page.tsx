@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/auth";
 import { ReportContainer } from "../../../../_components/ReportContainer";
 import { ReportPageSuspense } from "../../../../_components/ReportPageSuspense";
-import ReportComponentTableEdit from "../../../../_components/ReportComponentTableEdit";
+import ReportComponentEditClient from "../../../../_reportComponents/ReportComponentEditClient";
 
 export default async function ReportComponentEditPage({
   params,
@@ -25,7 +25,7 @@ export default async function ReportComponentEditPage({
 
   return (
     <ReportPageSuspense title="Edit Report Component" maxWidthClassName="max-w-6xl">
-      <ReportComponentTableEdit reportId={route} reportComponentId={reportComponentId} />
+      <ReportComponentEditClient reportId={route} reportComponentId={reportComponentId} />
     </ReportPageSuspense>
   );
 }

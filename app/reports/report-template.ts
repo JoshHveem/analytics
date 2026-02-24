@@ -30,7 +30,10 @@ export type TemplateReportConfigResponse = {
     filters?: Array<{
       filter_code: string;
       type: string;
-      default_value: string | null;
+      settings?: {
+        default_value: string | null;
+        include_all: boolean;
+      };
       label: string;
       description: string | null;
     }>;
@@ -88,7 +91,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ReportHeader } from "../_components/ReportHeader";
 import { ReportContainer } from "../_components/ReportContainer";
-import { ReportComponentTable, type ReportComponentTableColumn } from "../_components/ReportComponentTable";
+import { ReportComponentTable, type ReportComponentTableColumn } from "../_reportComponents/ReportComponentTable";
 import { ReportErrorBanner } from "../_components/ReportErrorBanner";
 import { MetaChip } from "../_components/MetaChip";
 import {
@@ -211,3 +214,4 @@ export default function ReportPage() {
   );
 }
 `.trim();
+

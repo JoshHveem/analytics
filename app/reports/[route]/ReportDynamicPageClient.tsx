@@ -8,8 +8,11 @@ import { ReportErrorBanner } from "../_components/ReportErrorBanner";
 import { MetaChip } from "../_components/MetaChip";
 import { EditAction } from "../_components/EditAction";
 import type { PillTone } from "../_components/Pill";
-import { ReportComponentTable, type ReportComponentTableColumn } from "../_components/ReportComponentTable";
+import type { ReportComponentTableColumn } from "../_reportComponents/ReportComponentTable";
+import ReportComponentTableRuntime from "../_reportComponents/ReportComponentTableRuntime";
+import ReportComponentConditionalBar from "../_reportComponents/ReportComponentConditionalBar";
 import { useReportPageData } from "../_hooks/useReportPageData";
+import { APP_COLORS } from "@/lib/color-palette";
 
 type GenericReportRow = Record<string, unknown>;
 
@@ -20,10 +23,16 @@ type GenericReportResponse = {
   meta?: Record<string, unknown> & {
     report_id?: unknown;
     report_component_id?: unknown;
+    component_code?: unknown;
     selected_columns?: unknown;
     report_component_settings?: unknown;
     component_settings?: unknown;
   };
+  error?: string;
+};
+type ComponentResolveResponse = {
+  ok: boolean;
+  component_code?: string;
   error?: string;
 };
 
@@ -36,9 +45,24 @@ type ColumnTypeRule = {
     gte?: number;
     lte?: number;
   };
+  conditions?: Array<{
+    include: boolean;
+    color?: string;
+    all: Array<{
+      field: string;
+      op: "eq" | "neq";
+      value: string;
+    }>;
+  }>;
   display?: "percentage" | "number" | "raw" | "title_case";
   fraction_digits?: number;
   colors_by_value?: Record<string, string>;
+  color?: string;
+  color_else?: string;
+  bar_max?: number;
+  value_from?: string;
+  threshold_from?: string;
+  label_from?: string;
 };
 
 function toTitleCase(raw: string): string {
@@ -147,6 +171,68 @@ function readColumnTypeRules(meta: GenericReportResponse["meta"]): Record<string
           ? rawRule.fraction_digits
           : undefined,
       ...(Object.keys(colorsByValue).length > 0 ? { colors_by_value: colorsByValue } : {}),
+      color:
+        typeof rawRule.color === "string" && rawRule.color.trim().length > 0
+          ? rawRule.color.trim()
+          : undefined,
+      color_else:
+        typeof rawRule.color_else === "string" && rawRule.color_else.trim().length > 0
+          ? rawRule.color_else.trim()
+          : undefined,
+      bar_max:
+        typeof rawRule.bar_max === "number" && Number.isFinite(rawRule.bar_max)
+          ? rawRule.bar_max
+          : undefined,
+      value_from:
+        typeof rawRule.value_from === "string" && rawRule.value_from.trim().length > 0
+          ? rawRule.value_from.trim()
+          : undefined,
+      threshold_from:
+        typeof rawRule.threshold_from === "string" && rawRule.threshold_from.trim().length > 0
+          ? rawRule.threshold_from.trim()
+          : undefined,
+      label_from:
+        typeof rawRule.label_from === "string" && rawRule.label_from.trim().length > 0
+          ? rawRule.label_from.trim()
+          : undefined,
+      conditions: Array.isArray(rawRule.conditions)
+        ? rawRule.conditions
+            .filter((condition): condition is Record<string, unknown> => isObjectRecord(condition))
+            .map((condition) => {
+              const all = Array.isArray(condition.all)
+                ? condition.all
+                    .filter((clause): clause is Record<string, unknown> => isObjectRecord(clause))
+                    .map((clause) => {
+                      const field = String(clause.field ?? "").trim();
+                      const op = String(clause.op ?? "").trim().toLowerCase() === "neq" ? "neq" : "eq";
+                      const value = String(clause.value ?? "");
+                      if (!field) {
+                        return null;
+                      }
+                      return { field, op, value };
+                    })
+                    .filter((clause): clause is { field: string; op: "eq" | "neq"; value: string } => clause !== null)
+                : [];
+              if (all.length === 0) {
+                return null;
+              }
+              const color = String(condition.color ?? "").trim();
+              return {
+                include: condition.include !== false,
+                ...(color ? { color } : {}),
+                all,
+              };
+            })
+            .filter(
+              (
+                condition
+              ): condition is {
+                include: boolean;
+                color?: string;
+                all: Array<{ field: string; op: "eq" | "neq"; value: string }>;
+              } => condition !== null
+            )
+        : undefined,
     };
   }
 
@@ -182,6 +268,118 @@ function formatNumber(value: unknown, fractionDigits = 2): string {
     return "-";
   }
   return number.toLocaleString(undefined, { maximumFractionDigits: fractionDigits });
+}
+
+function resolveBarColor(colorName: string | undefined): string {
+  const normalized = String(colorName ?? "").trim();
+  if (!normalized) {
+    throw new Error("Missing bar color");
+  }
+  if (normalized === "neutral") {
+    return APP_COLORS.darkGray;
+  }
+  if (normalized === "success") {
+    return APP_COLORS.green;
+  }
+  if (normalized === "warning") {
+    return APP_COLORS.yellowDark;
+  }
+  if (normalized === "danger") {
+    return APP_COLORS.red;
+  }
+  if (normalized === "info") {
+    return APP_COLORS.blue;
+  }
+  if (normalized in APP_COLORS) {
+    return APP_COLORS[normalized as keyof typeof APP_COLORS];
+  }
+  if (
+    normalized.startsWith("#") ||
+    normalized.startsWith("rgb(") ||
+    normalized.startsWith("rgba(") ||
+    normalized.startsWith("hsl(") ||
+    normalized.startsWith("hsla(") ||
+    normalized.startsWith("var(")
+  ) {
+    return normalized;
+  }
+  throw new Error(`Unsupported bar color: ${normalized}`);
+}
+
+function matchesThreshold(rule: ColumnTypeRule, value: number): boolean {
+  const gte = typeof rule.threshold?.gte === "number" ? rule.threshold.gte : undefined;
+  const lte = typeof rule.threshold?.lte === "number" ? rule.threshold.lte : undefined;
+  if (gte === undefined && lte === undefined) {
+    return true;
+  }
+  if (gte !== undefined && value < gte) {
+    return false;
+  }
+  if (lte !== undefined && value > lte) {
+    return false;
+  }
+  return true;
+}
+
+function normalizeConditionValue(value: unknown): string {
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+  if (value === null || value === undefined) {
+    return "";
+  }
+  return String(value).trim().toLowerCase();
+}
+
+function evaluateCondition(
+  rule: ColumnTypeRule,
+  row: GenericReportRow,
+  resolveField: (field: string) => string
+): { include: boolean; color?: string; conditionIndex: number } | null {
+  const conditions = Array.isArray(rule.conditions) ? rule.conditions : [];
+  for (let conditionIndex = 0; conditionIndex < conditions.length; conditionIndex += 1) {
+    const condition = conditions[conditionIndex];
+    const isMatch = condition.all.every((clause) => {
+      const left = normalizeConditionValue(row[resolveField(clause.field)]);
+      const right = normalizeConditionValue(clause.value);
+      if (clause.op === "neq") {
+        return left !== right;
+      }
+      return left === right;
+    });
+    if (isMatch) {
+      return { include: condition.include !== false, color: condition.color, conditionIndex };
+    }
+  }
+  return null;
+}
+
+function resolveFieldKey(args: {
+  preferred?: string;
+  availableKeys: Set<string>;
+  fallback: string;
+}): string {
+  const preferredRaw = String(args.preferred ?? "").trim();
+  if (!preferredRaw) {
+    return args.fallback;
+  }
+  if (args.availableKeys.has(preferredRaw)) {
+    return preferredRaw;
+  }
+  const preferredLower = preferredRaw.toLowerCase();
+  const exactIgnoreCase = Array.from(args.availableKeys).find((key) => key.toLowerCase() === preferredLower);
+  if (exactIgnoreCase) {
+    return exactIgnoreCase;
+  }
+  const preferredSuffix = preferredRaw.includes(".") ? preferredRaw.split(".").pop() ?? preferredRaw : preferredRaw;
+  if (args.availableKeys.has(preferredSuffix)) {
+    return preferredSuffix;
+  }
+  const suffixMatch = Array.from(args.availableKeys).find((key) => key.toLowerCase().endsWith(`.${preferredLower}`));
+  if (suffixMatch) {
+    return suffixMatch;
+  }
+  return args.fallback;
 }
 
 function inferColumnType(columnId: string, rows: GenericReportRow[]): "text" | "number" | "percent" {
@@ -225,8 +423,21 @@ function rowKey(row: GenericReportRow, index: number): string {
   return `row-${index}`;
 }
 
+function parseComponentCode(raw: unknown, source: string): string {
+  const componentCode = String(raw ?? "").trim();
+  if (!componentCode) {
+    throw new Error(`Missing component_code from ${source}`);
+  }
+  return componentCode;
+}
+
+function componentEndpoint(componentCode: string): string {
+  return `/api/reports/components/${componentCode.replace(/_/g, "-")}`;
+}
+
 export default function ReportDynamicPageClient({ route, isAdmin }: { route: string; isAdmin: boolean }) {
   const searchParams = useSearchParams();
+  const [componentCode, setComponentCode] = useState<string>("");
   const [columnIds, setColumnIds] = useState<string[]>([]);
   const [columnTypeRules, setColumnTypeRules] = useState<Record<string, ColumnTypeRule>>({});
   const [reportId, setReportId] = useState<string | null>(null);
@@ -254,7 +465,22 @@ export default function ReportDynamicPageClient({ route, isAdmin }: { route: str
         params.set(key, value);
       }
 
-      const res = await fetch(`/api/reports/components/table?${params.toString()}`);
+      let resolvedComponentCode = componentCode;
+      if (!resolvedComponentCode) {
+        const resolveRes = await fetch(
+          `/api/reports/components/resolve?route=${encodeURIComponent(route)}`,
+          { cache: "no-store" }
+        );
+        const resolveJson = (await resolveRes.json()) as ComponentResolveResponse;
+        if (!resolveRes.ok || !resolveJson.ok) {
+          throw new Error(resolveJson.error || "Failed to resolve report component");
+        }
+        resolvedComponentCode = parseComponentCode(resolveJson.component_code, "components/resolve");
+        setComponentCode(resolvedComponentCode);
+      }
+
+      const endpoint = componentEndpoint(resolvedComponentCode);
+      const res = await fetch(`${endpoint}?${params.toString()}`);
       const json = (await res.json()) as GenericReportResponse;
       if (!res.ok) {
         throw new Error(json.error || "Request failed");
@@ -271,12 +497,17 @@ export default function ReportDynamicPageClient({ route, isAdmin }: { route: str
       setColumnTypeRules(readColumnTypeRules(json.meta));
       const nextReportId = String(json.meta?.report_id ?? "").trim();
       const nextReportComponentId = String(json.meta?.report_component_id ?? "").trim();
+      const nextComponentCode = parseComponentCode(
+        json.meta?.component_code,
+        `${endpoint} response meta.component_code`
+      );
       setReportId(nextReportId || null);
       setReportComponentId(nextReportComponentId || null);
+      setComponentCode(nextComponentCode);
 
       return rows;
     },
-    [route]
+    [componentCode, route]
   );
 
   const { reportTitle, reportDescription, loading, error, rows } = useReportPageData<GenericReportRow>({
@@ -304,6 +535,38 @@ export default function ReportDynamicPageClient({ route, isAdmin }: { route: str
     }
     return totals;
   }, [columnIds, safeRows]);
+  const maxByColumn = useMemo<Record<string, number>>(() => {
+    const maxes: Record<string, number> = {};
+    for (const columnId of columnIds) {
+      let max = 0;
+      for (const row of safeRows) {
+        const value = toNumber(row[columnId]);
+        if (value !== null) {
+          max = Math.max(max, value);
+        }
+      }
+      maxes[columnId] = max;
+    }
+    return maxes;
+  }, [columnIds, safeRows]);
+  const rowFieldKeys = useMemo(() => {
+    return new Set(Object.keys(safeRows[0] ?? {}));
+  }, [safeRows]);
+  const maxByField = useMemo<Record<string, number>>(() => {
+    const maxes: Record<string, number> = {};
+    const keys = Object.keys(safeRows[0] ?? {});
+    for (const key of keys) {
+      let max = 0;
+      for (const row of safeRows) {
+        const value = toNumber(row[key]);
+        if (value !== null) {
+          max = Math.max(max, value);
+        }
+      }
+      maxes[key] = max;
+    }
+    return maxes;
+  }, [safeRows]);
 
   const columns = useMemo<ReportComponentTableColumn<GenericReportRow>[]>(() => {
     return columnIds.map((columnId) => {
@@ -388,6 +651,69 @@ export default function ReportDynamicPageClient({ route, isAdmin }: { route: str
         };
       }
 
+      if (rule.type === "conditional_bar" && componentCode === "conditional_bar") {
+        const valueField = resolveFieldKey({
+          preferred: rule.value_from,
+          availableKeys: rowFieldKeys,
+          fallback: columnId,
+        });
+        const thresholdField = resolveFieldKey({
+          preferred: rule.threshold_from ?? rule.value_from,
+          availableKeys: rowFieldKeys,
+          fallback: valueField,
+        });
+        const digits = rule.fraction_digits ?? 2;
+        const fallbackBarMax =
+          rule.display === "percentage"
+            ? 1
+            : Math.max(maxByField[valueField] ?? maxByColumn[columnId] ?? 0, 1);
+        const denominator = Math.max(
+          typeof rule.bar_max === "number" && Number.isFinite(rule.bar_max) && rule.bar_max > 0
+            ? rule.bar_max
+            : fallbackBarMax,
+          1e-9
+        );
+        return {
+          ...base,
+          columnType: "custom",
+          sortValue: (row) => toNumber(row[valueField]) ?? Number.NEGATIVE_INFINITY,
+          render: (row) => {
+            const value = toNumber(row[valueField]);
+            if (value === null) {
+              return "-";
+            }
+            const pct = Math.max(0, Math.min(1, value / denominator));
+            const thresholdValue = toNumber(row[thresholdField]);
+            const isMatch = thresholdValue !== null ? matchesThreshold(rule, thresholdValue) : false;
+            const barColor = isMatch
+              ? resolveBarColor(rule.color)
+              : resolveBarColor(rule.color_else);
+            const label =
+              rule.display === "percentage"
+                ? `${(value * 100).toFixed(digits)}%`
+                : formatNumber(value, digits);
+
+            return (
+              <div className="min-w-[140px]">
+                <div className="mb-1 text-xs">{label}</div>
+                <div
+                  className="h-2 w-full overflow-hidden rounded"
+                  style={{ backgroundColor: "var(--app-surface-muted)" }}
+                >
+                  <div
+                    className="h-full rounded"
+                    style={{
+                      width: `${pct * 100}%`,
+                      backgroundColor: barColor,
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          },
+        };
+      }
+
       if (rule.type === "number" || rule.type === "percent" || rule.type === "text") {
         return {
           ...base,
@@ -400,30 +726,124 @@ export default function ReportDynamicPageClient({ route, isAdmin }: { route: str
 
       return base;
     });
-  }, [columnIds, columnTypeRules, safeRows, totalsByColumn]);
+  }, [columnIds, columnTypeRules, componentCode, maxByColumn, maxByField, rowFieldKeys, safeRows, totalsByColumn]);
+  const standaloneConditionalBarRows = useMemo(() => {
+    if (componentCode !== "conditional_bar") {
+      return [] as Array<{ key: string; label: string; valueLabel: string; widthPct: number; color: string }>;
+    }
+
+    const conditionalEntry = Object.entries(columnTypeRules).find(([, rule]) => rule.type === "conditional_bar");
+    if (!conditionalEntry) {
+      return [] as Array<{ key: string; label: string; valueLabel: string; widthPct: number; color: string }>;
+    }
+
+    const [ruleColumnKey, rule] = conditionalEntry;
+    const availableKeys = new Set(Object.keys(safeRows[0] ?? {}));
+    const valueField = resolveFieldKey({
+      preferred: rule.value_from || ruleColumnKey,
+      availableKeys,
+      fallback: ruleColumnKey,
+    });
+    const thresholdField = resolveFieldKey({
+      preferred: rule.threshold_from || rule.value_from || ruleColumnKey,
+      availableKeys,
+      fallback: valueField,
+    });
+    const labelField = resolveFieldKey({
+      preferred: rule.label_from,
+      availableKeys,
+      fallback: "sis_user_id",
+    });
+    const digits = rule.fraction_digits ?? 2;
+    const fallbackBarMax =
+      rule.display === "percentage" ? 1 : Math.max(maxByField[valueField] ?? 0, 1);
+    const denominator = Math.max(
+      typeof rule.bar_max === "number" && Number.isFinite(rule.bar_max) && rule.bar_max > 0
+        ? rule.bar_max
+        : fallbackBarMax,
+      1e-9
+    );
+
+    return safeRows
+      .map((row, index) => {
+        const value = toNumber(row[valueField]);
+        if (value === null) {
+          return null;
+        }
+        const matchedCondition = evaluateCondition(rule, row, (field) =>
+          resolveFieldKey({ preferred: field, availableKeys, fallback: field })
+        );
+        if (matchedCondition && !matchedCondition.include) {
+          return null;
+        }
+        const thresholdValue = toNumber(row[thresholdField]);
+        const isMatch = thresholdValue !== null ? matchesThreshold(rule, thresholdValue) : false;
+        const color = matchedCondition?.color
+          ? resolveBarColor(matchedCondition.color)
+          : (isMatch
+              ? resolveBarColor(rule.color)
+              : resolveBarColor(rule.color_else));
+        const widthPct = Math.max(0, Math.min(100, (value / denominator) * 100));
+        const rawLabel = row[labelField];
+        const label = String(rawLabel ?? row.sis_user_id ?? `row-${index + 1}`).trim() || `row-${index + 1}`;
+        const valueLabel =
+          rule.display === "percentage"
+            ? `${(value * 100).toFixed(digits)}%`
+            : formatNumber(value, digits);
+        return {
+          key: rowKey(row, index),
+          label,
+          valueLabel,
+          widthPct,
+          color,
+          value,
+          conditionOrder: matchedCondition?.conditionIndex ?? (Array.isArray(rule.conditions) ? rule.conditions.length : 0),
+        };
+      })
+      .filter((row): row is { key: string; label: string; valueLabel: string; widthPct: number; color: string; value: number; conditionOrder: number } => row !== null)
+      .sort((a, b) => {
+        if (a.conditionOrder !== b.conditionOrder) {
+          return a.conditionOrder - b.conditionOrder;
+        }
+        return b.value - a.value;
+      })
+      .map(({ value, conditionOrder, ...rest }) => rest);
+  }, [columnTypeRules, componentCode, maxByField, safeRows]);
+  const standaloneConditionalBarSegments = useMemo(() => {
+    return standaloneConditionalBarRows.map((row) => ({
+      key: row.key,
+      color: row.color,
+      title: `${row.label}: ${row.valueLabel}`,
+    }));
+  }, [standaloneConditionalBarRows]);
 
   const defaultSortColumnId = columns[0]?.id ?? "id";
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <ReportHeader title={reportTitle} description={reportDescription} />
-      {isAdmin && reportId && reportComponentId && (
-        <div className="mt-2">
-          <EditAction
-            href={`/reports/${reportId}/edit`}
-            ariaLabel="Edit report"
-            title="Edit report"
-            className="text-sm"
-            style={{ borderColor: "var(--app-border)", color: "var(--app-text-strong)" }}
-          />
-        </div>
-      )}
+      <ReportHeader
+        title={reportTitle}
+        description={reportDescription}
+        action={
+          isAdmin && reportId && reportComponentId ? (
+            <EditAction
+              href={`/reports/${reportId}/edit`}
+              ariaLabel="Edit report"
+              title="Edit report"
+              className="text-sm"
+              style={{ borderColor: "var(--app-border)", color: "var(--app-text-strong)" }}
+            />
+          ) : null
+        }
+      />
 
       {error && <ReportErrorBanner className="mt-4" message={error} />}
 
       <ReportContainer className="mt-5">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Report Data</h2>
+          <h2 className="text-sm font-semibold">
+            {componentCode === "conditional_bar" ? "Conditional Bars" : "Report Data"}
+          </h2>
           <MetaChip>Rows: {safeRows.length}</MetaChip>
         </div>
 
@@ -433,22 +853,26 @@ export default function ReportDynamicPageClient({ route, isAdmin }: { route: str
           </div>
         )}
 
-        {!loading && columns.length === 0 && (
+        {!loading && componentCode !== "conditional_bar" && columns.length === 0 && (
           <div className="text-sm" style={{ color: "var(--app-text-muted)" }}>
             No columns configured for this report.
           </div>
         )}
 
-        {columns.length > 0 && (
-          <ReportComponentTable
+        {componentCode === "conditional_bar" && (
+          <ReportComponentConditionalBar rows={standaloneConditionalBarRows} segments={standaloneConditionalBarSegments} />
+        )}
+
+        {componentCode !== "conditional_bar" && columns.length > 0 && (
+          <ReportComponentTableRuntime
             rows={safeRows}
             columns={columns}
-            defaultSort={{ columnId: defaultSortColumnId, direction: "asc" }}
+            defaultSortColumnId={defaultSortColumnId}
             rowKey={rowKey}
-            emptyText="No data found for the selected filters."
           />
         )}
       </ReportContainer>
     </div>
   );
 }
+

@@ -8,3 +8,4 @@ MANDATORY STANDARDS
 -All content must be designed to meet WCAG 2.1 AA accessibility at a minimum.
 -All API queries must use the auth process to ensure RLS is applied and the anonymize process to ensure PII columns are anonymized.
 -Content needs to be desktop and mobile friendly
+-Do NOT build failsafes for bad server data unless explicitly asked to. Messay data should fail so we know to clean it up, not silently become messier and messier.

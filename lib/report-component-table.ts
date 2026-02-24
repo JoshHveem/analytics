@@ -470,7 +470,16 @@ async function resolveTableComponentForRoute(
     WHERE (trim(both '/' from r.route) = $1 OR r.id = $1)
       AND COALESCE(r.is_active, true) = true
       AND ($2::text IS NULL OR rc.component_code = $2::text)
-    ORDER BY rc.component_code
+    ORDER BY
+      COALESCE(
+        CASE
+          WHEN (rc.settings->>'component_order') ~ '^-?\\d+$'
+          THEN (rc.settings->>'component_order')::int
+          ELSE NULL
+        END,
+        100000
+      ) ASC,
+      rc.id ASC
     LIMIT 1
     `,
     [route, normalizedComponentCode || null]
@@ -481,7 +490,7 @@ async function resolveTableComponentForRoute(
     const where = normalizedComponentCode
       ? ` and component_code "${normalizedComponentCode}"`
       : "";
-    throw new Error(`No active table component is configured for report route "${route}"${where}`);
+    throw new Error(`No active component is configured for report route "${route}"${where}`);
   }
   const defaultSettings = parseJsonObject(
     component.component_default_settings,
@@ -735,7 +744,7 @@ export async function buildTableComponentQuery(args: {
   }
 
   const sql = [
-    `SELECT ${selectClauses.join(", ")}`,
+    `SELECT DISTINCT ${selectClauses.join(", ")}`,
     `FROM ${quoteIdentifier(baseDatasetSchema)}.${quoteIdentifier(baseDataset)} d0`,
     ...joinClauses,
     whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "",

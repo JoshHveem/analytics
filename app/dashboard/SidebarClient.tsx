@@ -7,6 +7,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReportCategory } from "@/lib/report-catalog";
 import { InfoModalTrigger } from "@/app/_components/InfoModalTrigger";
 import { applyAppTheme } from "@/lib/color-palette";
+import { publishReportFiltersReady } from "@/app/reports/filter-readiness";
+import SettingsIcon from "./SettingsIcon";
 
 type SidebarClientProps = {
   categories: ReportCategory[];
@@ -19,6 +21,10 @@ type ReportFilterMenuItem = {
   description: string | null;
   table: string | null;
   column: string | null;
+  settings?: {
+    default_value: string | null;
+    include_all: boolean;
+  } | null;
 };
 
 type ReportConfigResponse = {
@@ -32,6 +38,10 @@ type ReportConfigResponse = {
       description: string | null;
       table: string | null;
       column: string | null;
+      settings?: {
+        default_value: string | null;
+        include_all: boolean;
+      } | null;
     }>;
   };
 };
@@ -89,6 +99,10 @@ type ReportEditableFilterItem = {
   table: string | null;
   column: string | null;
   selected: boolean;
+  settings?: {
+    default_value: string | null;
+    include_all: boolean;
+  } | null;
 };
 
 type ReportEditorFiltersResponse = {
@@ -102,8 +116,56 @@ type ReportEditorFiltersResponse = {
   error?: string;
 };
 
+type SelectFilterSettingsDraft = {
+  default_value: string;
+  include_all: boolean;
+};
+
+function toReportFilterMenuItem(filter: {
+  filter_code: string;
+  type?: string | null;
+  label?: string | null;
+  description?: string | null;
+  table?: string | null;
+  column?: string | null;
+  settings?: {
+    default_value: string | null;
+    include_all: boolean;
+  } | null;
+}): ReportFilterMenuItem {
+  return {
+    filter_code: String(filter.filter_code),
+    type: String(filter.type ?? "select"),
+    label: String(filter.label ?? filter.filter_code),
+    description: filter.description ?? null,
+    table: filter.table ?? null,
+    column: filter.column ?? null,
+    settings: filter.settings ?? null,
+  };
+}
+
+function toSelectFilterSettingsDraft(
+  filter: ReportEditableFilterItem
+): SelectFilterSettingsDraft {
+  const settings = filter.settings ?? null;
+  const defaultValueRaw = settings?.default_value;
+  const default_value =
+    defaultValueRaw === null || defaultValueRaw === undefined
+      ? ""
+      : String(defaultValueRaw);
+  return {
+    default_value,
+    include_all: settings?.include_all === true,
+  };
+}
+
 const EDIT_COLUMNS_STATE_EVENT = "analytics:report-component-edit-state";
 const EDIT_COLUMNS_CHANGE_EVENT = "analytics:report-component-edit-columns-change";
+const EDIT_COMPONENT_SAVE_REQUEST_EVENT = "analytics:report-component-edit-save-request";
+const EDIT_COMPONENT_RESET_REQUEST_EVENT = "analytics:report-component-edit-reset-request";
+const REPORT_EDIT_STATE_EVENT = "analytics:report-edit-state";
+const REPORT_EDIT_SAVE_REQUEST_EVENT = "analytics:report-edit-save-request";
+const REPORT_EDIT_RESET_REQUEST_EVENT = "analytics:report-edit-reset-request";
 const SIDEBAR_WIDTH_STORAGE_KEY = "analytics-sidebar-width";
 const SIDEBAR_DEFAULT_WIDTH = 256;
 const SIDEBAR_MIN_WIDTH = 240;
@@ -248,13 +310,20 @@ function optionsFromMetaSource(raw: unknown, valueKeyHint?: string | null): Arra
     return [];
   }
 
+  const codeNameCandidate = valueKey.endsWith("_code")
+    ? valueKey.replace(/_code$/, "_name")
+    : "";
+  const idNameCandidate = valueKey.endsWith("_id")
+    ? valueKey.replace(/_id$/, "_name")
+    : "";
   const labelCandidates = [
-    valueKey.replace(/_code$/, "_name"),
-    recordKeys.find((key) => key.endsWith("_name")) ?? "",
     "label",
     "name",
+    codeNameCandidate,
+    idNameCandidate,
+    recordKeys.find((key) => key.endsWith("_name")) ?? "",
     valueKey,
-  ];
+  ].filter((key) => key.length > 0);
   const labelKey = labelCandidates.find((key) => key in firstRecord) ?? valueKey;
 
   return raw
@@ -271,6 +340,57 @@ function optionsFromMetaSource(raw: unknown, valueKeyHint?: string | null): Arra
       return { value, label };
     })
     .filter((option): option is { value: string; label: string } => option !== null);
+}
+
+function filterOptionsFromMeta(
+  filter: ReportFilterMenuItem,
+  filterMeta: Record<string, unknown>
+): Array<{ value: string; label: string }> {
+  const sourceKeys = normalizeMetaSourceKeys(filter);
+  const source = sourceKeys.find((key) => key in filterMeta);
+  const fallbackKey =
+    source ??
+    Object.keys(filterMeta).find((metaKey) => sourceKeys.includes(metaKey.trim().toLowerCase()));
+  const raw = fallbackKey ? filterMeta[fallbackKey] : undefined;
+  return optionsFromMetaSource(raw, filter.column);
+}
+
+function resolveFilterDefaultsIntoQuery(args: {
+  currentParams: URLSearchParams;
+  filters: ReportFilterMenuItem[];
+  selectedByMeta: Record<string, string | null>;
+  meta: Record<string, unknown>;
+}): URLSearchParams | null {
+  const { currentParams, filters, selectedByMeta, meta } = args;
+  const nextParams = new URLSearchParams(currentParams.toString());
+  let changed = false;
+
+  for (const filter of filters) {
+    const filterCode = String(filter.filter_code ?? "").trim();
+    if (!filterCode || nextParams.has(filterCode)) {
+      continue;
+    }
+
+    const selectedValue = String(selectedByMeta[filterCode] ?? "").trim();
+    const defaultValue = String(filter.settings?.default_value ?? "").trim();
+    const filterType = normalizeFilterType(filter.type);
+    const includeAllEnabled = filter.settings?.include_all === true;
+    let resolvedValue = selectedValue || defaultValue;
+
+    if (!resolvedValue && filterType === "select" && !includeAllEnabled) {
+      const options = filterOptionsFromMeta(filter, meta);
+      resolvedValue = String(options[0]?.value ?? "").trim();
+    }
+
+    if (!resolvedValue) {
+      continue;
+    }
+
+    nextParams.set(filterCode, resolvedValue);
+    changed = true;
+  }
+
+  return changed ? nextParams : null;
 }
 
 function groupedColumns(columns: EditAvailableColumn[]): Array<[string, EditAvailableColumn[]]> {
@@ -332,6 +452,63 @@ function SettingToggle({
   );
 }
 
+function isMenuModeAvailable(
+  menuMode: "reports" | "filters" | "columns" | "settings",
+  args: {
+    reportRoute: string | null;
+    isComponentEditMode: boolean;
+  }
+): boolean {
+  if (menuMode === "filters") {
+    return Boolean(args.reportRoute);
+  }
+  if (menuMode === "columns") {
+    return args.isComponentEditMode;
+  }
+  return true;
+}
+
+function NavIcon({
+  name,
+  className,
+}: {
+  name: "home" | "reports" | "filters" | "columns";
+  className?: string;
+}) {
+  if (name === "home") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+        <path d="M3 11.5L12 4l9 7.5" />
+        <path d="M6.75 10.75V20h10.5v-9.25" />
+      </svg>
+    );
+  }
+  if (name === "reports") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+        <path d="M5 4.75h14v14.5H5z" />
+        <path d="M8 9h8M8 13h8M8 17h5" />
+      </svg>
+    );
+  }
+  if (name === "filters") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+        <path d="M4 6.5h16M7.5 12h9M10.5 17.5h3" />
+      </svg>
+    );
+  }
+  if (name === "columns") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+        <path d="M4.5 5h15v14h-15z" />
+        <path d="M10 5v14M14 5v14" />
+      </svg>
+    );
+  }
+  return null;
+}
+
 export default function SidebarClient({ categories }: SidebarClientProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -345,13 +522,16 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
   const queryKey = searchParams.toString();
   const [reportId, setReportId] = useState<string | null>(null);
   const [filters, setFilters] = useState<ReportFilterMenuItem[]>([]);
-  const [menuMode, setMenuMode] = useState<"reports" | "filters" | "edit_filters" | "columns" | "settings">(
+  const [menuMode, setMenuMode] = useState<"reports" | "filters" | "columns" | "settings">(
     isComponentEditMode ? "columns" : reportRoute ? "filters" : "reports"
   );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [filterMeta, setFilterMeta] = useState<Record<string, unknown>>({});
-  const [selectedMeta, setSelectedMeta] = useState<Record<string, string | null>>({});
+  const [loadingFilterConfig, setLoadingFilterConfig] = useState(false);
   const [loadingFilterData, setLoadingFilterData] = useState(false);
+  const [syncingFilterDefaults, setSyncingFilterDefaults] = useState(false);
+  const [filterConfigResolved, setFilterConfigResolved] = useState(false);
+  const [filterMetaResolved, setFilterMetaResolved] = useState(false);
   const [loadingEditColumns, setLoadingEditColumns] = useState(false);
   const [editAvailableColumns, setEditAvailableColumns] = useState<EditAvailableColumn[]>([]);
   const [editSelectedColumns, setEditSelectedColumns] = useState<string[]>([]);
@@ -361,6 +541,11 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
   const [editFilterMessage, setEditFilterMessage] = useState<string | null>(null);
   const [editAvailableFilters, setEditAvailableFilters] = useState<ReportEditableFilterItem[]>([]);
   const [editSelectedFilters, setEditSelectedFilters] = useState<string[]>([]);
+  const [editFilterSettings, setEditFilterSettings] = useState<Record<string, SelectFilterSettingsDraft>>({});
+  const [componentEditDirty, setComponentEditDirty] = useState(false);
+  const [componentEditSaving, setComponentEditSaving] = useState(false);
+  const [reportEditDirty, setReportEditDirty] = useState(false);
+  const [reportEditSaving, setReportEditSaving] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState<number>(SIDEBAR_DEFAULT_WIDTH);
   const [darkMode, setDarkMode] = useState(false);
   const [anonymize, setAnonymize] = useState(false);
@@ -373,9 +558,15 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
       if (!reportRoute) {
         setReportId(null);
         setFilters([]);
+        setLoadingFilterConfig(false);
+        setFilterConfigResolved(true);
+        setFilterMetaResolved(true);
         return;
       }
 
+      setFilterMetaResolved(false);
+      setFilterConfigResolved(false);
+      setLoadingFilterConfig(true);
       try {
         const res = await fetch(`/api/reports/config?route=${encodeURIComponent(reportRoute)}`, {
           cache: "no-store",
@@ -391,21 +582,18 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
 
         if (!cancelled) {
           setReportId(String(json.config.id));
-          setFilters(
-            (json.config.filters ?? []).map((f) => ({
-              filter_code: String(f.filter_code),
-              type: String(f.type ?? "select"),
-              label: String(f.label ?? f.filter_code),
-              description: f.description ?? null,
-              table: f.table ?? null,
-              column: f.column ?? null,
-            }))
-          );
+          setFilters((json.config.filters ?? []).map((f) => toReportFilterMenuItem(f)));
+          setFilterMetaResolved(false);
         }
       } catch {
         if (!cancelled) {
           setReportId(null);
           setFilters([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingFilterConfig(false);
+          setFilterConfigResolved(true);
         }
       }
     }
@@ -422,11 +610,15 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
     async function loadFilterMeta() {
       if (!reportRoute || !reportId) {
         setFilterMeta({});
-        setSelectedMeta({});
+        setLoadingFilterData(false);
+        setSyncingFilterDefaults(false);
+        setFilterMetaResolved(true);
         return;
       }
 
       setLoadingFilterData(true);
+      setSyncingFilterDefaults(false);
+      setFilterMetaResolved(false);
       try {
         const params = new URLSearchParams();
         params.set("include_meta", "1");
@@ -447,20 +639,33 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
             meta.selected && typeof meta.selected === "object"
               ? (meta.selected as Record<string, unknown>)
               : {};
-          const nextSelected: Record<string, string | null> = {};
+          const selectedByMeta: Record<string, string | null> = {};
           for (const [key, value] of Object.entries(selectedRaw)) {
-            nextSelected[key] = value === null || value === undefined ? null : String(value);
+            selectedByMeta[key] = value === null || value === undefined ? null : String(value);
           }
-          setSelectedMeta(nextSelected);
+          const nextParams = resolveFilterDefaultsIntoQuery({
+            currentParams: new URLSearchParams(searchParams.toString()),
+            filters,
+            selectedByMeta,
+            meta,
+          });
+          if (nextParams) {
+            setSyncingFilterDefaults(true);
+            const nextQuery = nextParams.toString();
+            router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+          } else {
+            setSyncingFilterDefaults(false);
+          }
         }
       } catch {
         if (!cancelled) {
           setFilterMeta({});
-          setSelectedMeta({});
+          setSyncingFilterDefaults(false);
         }
       } finally {
         if (!cancelled) {
           setLoadingFilterData(false);
+          setFilterMetaResolved(true);
         }
       }
     }
@@ -469,7 +674,21 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
     return () => {
       cancelled = true;
     };
-  }, [reportId, reportRoute, searchParams]);
+  }, [filters, pathname, reportId, reportRoute, router, searchParams]);
+
+  const filtersReady =
+    !reportRoute ||
+    (
+      filterConfigResolved &&
+      filterMetaResolved &&
+      !loadingFilterConfig &&
+      !loadingFilterData &&
+      !syncingFilterDefaults
+    );
+
+  useEffect(() => {
+    publishReportFiltersReady(reportRoute, queryKey, filtersReady);
+  }, [filtersReady, queryKey, reportRoute]);
 
   useEffect(() => {
     let cancelled = false;
@@ -526,6 +745,7 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
       if (!isReportOrComponentEditMode || !reportId) {
         setEditAvailableFilters([]);
         setEditSelectedFilters([]);
+        setEditFilterSettings({});
         setEditFilterError(null);
         setEditFilterMessage(null);
         return;
@@ -553,11 +773,24 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
           );
           setEditAvailableFilters(availableFilters);
           setEditSelectedFilters(selectedFilters);
+          const nextSettings: Record<string, SelectFilterSettingsDraft> = {};
+          for (const filter of availableFilters) {
+            const filterCode = String(filter.filter_code ?? "").trim();
+            if (!filterCode) {
+              continue;
+            }
+            if (normalizeFilterType(filter.type) !== "select") {
+              continue;
+            }
+            nextSettings[filterCode] = toSelectFilterSettingsDraft(filter);
+          }
+          setEditFilterSettings(nextSettings);
         }
       } catch (error: unknown) {
         if (!cancelled) {
           setEditAvailableFilters([]);
           setEditSelectedFilters([]);
+          setEditFilterSettings({});
           setEditFilterError(String(error));
         }
       } finally {
@@ -583,6 +816,8 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
         reportComponentId?: string;
         availableColumns?: EditAvailableColumn[];
         selectedColumns?: string[];
+        isDirty?: boolean;
+        isSaving?: boolean;
       }>;
       const detail = customEvent.detail ?? {};
       if (String(detail.reportId ?? "") !== reportRoute) {
@@ -597,6 +832,12 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
       if (Array.isArray(detail.selectedColumns)) {
         setEditSelectedColumns(Array.from(new Set(detail.selectedColumns.map((item) => String(item ?? "")))));
       }
+      if (typeof detail.isDirty === "boolean") {
+        setComponentEditDirty(detail.isDirty);
+      }
+      if (typeof detail.isSaving === "boolean") {
+        setComponentEditSaving(detail.isSaving);
+      }
     }
 
     window.addEventListener(EDIT_COLUMNS_STATE_EVENT, handleEditState as EventListener);
@@ -606,16 +847,54 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
   }, [isComponentEditMode, reportComponentId, reportRoute]);
 
   useEffect(() => {
-    if (isComponentEditMode) {
-      setMenuMode("columns");
-      return;
+    if (!isComponentEditMode) {
+      setComponentEditDirty(false);
+      setComponentEditSaving(false);
     }
-    if (isReportEditMode) {
-      setMenuMode("edit_filters");
-      return;
+  }, [isComponentEditMode]);
+
+  useEffect(() => {
+    function handleReportEditState(event: Event) {
+      const customEvent = event as CustomEvent<{
+        reportId?: string;
+        isDirty?: boolean;
+        isSaving?: boolean;
+      }>;
+      const detail = customEvent.detail ?? {};
+      if (String(detail.reportId ?? "") !== String(reportRoute ?? "")) {
+        return;
+      }
+      if (typeof detail.isDirty === "boolean") {
+        setReportEditDirty(detail.isDirty);
+      }
+      if (typeof detail.isSaving === "boolean") {
+        setReportEditSaving(detail.isSaving);
+      }
     }
-    setMenuMode(reportRoute ? "filters" : "reports");
-  }, [isComponentEditMode, isReportEditMode, reportRoute]);
+
+    window.addEventListener(REPORT_EDIT_STATE_EVENT, handleReportEditState as EventListener);
+    return () => {
+      window.removeEventListener(REPORT_EDIT_STATE_EVENT, handleReportEditState as EventListener);
+    };
+  }, [reportRoute]);
+
+  useEffect(() => {
+    if (!isReportEditMode) {
+      setReportEditDirty(false);
+      setReportEditSaving(false);
+    }
+  }, [isReportEditMode]);
+
+  useEffect(() => {
+    if (
+      !isMenuModeAvailable(menuMode, {
+        reportRoute,
+        isComponentEditMode,
+      })
+    ) {
+      setMenuMode("reports");
+    }
+  }, [isComponentEditMode, menuMode, reportRoute]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -750,22 +1029,11 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
   }, [darkMode, anonymize, settingsReady]);
 
   function filterValue(filterCode: string): string {
-    const param = filterCode;
-    const fromQuery = searchParams.get(param);
-    if (fromQuery) {
-      return fromQuery;
-    }
-    return selectedMeta[param] ?? "";
+    return searchParams.get(filterCode) ?? "";
   }
 
   function filterOptions(filter: ReportFilterMenuItem): Array<{ value: string; label: string }> {
-    const sourceKeys = normalizeMetaSourceKeys(filter);
-    const source = sourceKeys.find((key) => key in filterMeta);
-    const fallbackKey =
-      source ??
-      Object.keys(filterMeta).find((metaKey) => sourceKeys.includes(metaKey.trim().toLowerCase()));
-    const raw = fallbackKey ? filterMeta[fallbackKey] : undefined;
-    return optionsFromMetaSource(raw, filter.column);
+    return filterOptionsFromMeta(filter, filterMeta);
   }
 
   function applyFilterChange(filterCode: string, value: string) {
@@ -840,6 +1108,22 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
     if (!available.has(filterCode)) {
       return;
     }
+    if (checked) {
+      const filter = editAvailableFilters.find(
+        (item) => String(item.filter_code ?? "").trim() === filterCode
+      );
+      if (filter && normalizeFilterType(filter.type) === "select") {
+        setEditFilterSettings((current) => {
+          if (current[filterCode]) {
+            return current;
+          }
+          return {
+            ...current,
+            [filterCode]: toSelectFilterSettingsDraft(filter),
+          };
+        });
+      }
+    }
     setEditSelectedFilters((current) => {
       const nextSet = new Set(current);
       if (checked) {
@@ -851,6 +1135,26 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
     });
   }
 
+  function applyEditFilterSettingDefaultValue(filterCode: string, value: string) {
+    setEditFilterSettings((current) => ({
+      ...current,
+      [filterCode]: {
+        default_value: value,
+        include_all: current[filterCode]?.include_all ?? false,
+      },
+    }));
+  }
+
+  function applyEditFilterSettingIncludeAll(filterCode: string, includeAll: boolean) {
+    setEditFilterSettings((current) => ({
+      ...current,
+      [filterCode]: {
+        default_value: current[filterCode]?.default_value ?? "",
+        include_all: includeAll,
+      },
+    }));
+  }
+
   async function saveEditFilters() {
     if (!reportId || !isReportOrComponentEditMode) {
       return;
@@ -860,6 +1164,21 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
     setEditFilterError(null);
     setEditFilterMessage(null);
     try {
+      const filterSettingsPayload: Record<string, { default_value: string | null; include_all: boolean }> = {};
+      for (const filterCode of editSelectedFilters) {
+        const filter = editAvailableFilters.find(
+          (item) => String(item.filter_code ?? "").trim() === filterCode
+        );
+        const filterType = normalizeFilterType(filter?.type);
+        if (filterType !== "select") {
+          continue;
+        }
+        const draft = editFilterSettings[filterCode];
+        filterSettingsPayload[filterCode] = {
+          default_value: String(draft?.default_value ?? "").trim() || null,
+          include_all: draft?.include_all === true,
+        };
+      }
       const res = await fetch("/api/reports/editor/filters", {
         method: "PUT",
         headers: {
@@ -868,6 +1187,7 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
         body: JSON.stringify({
           report_id: reportId,
           selected_filters: editSelectedFilters,
+          filter_settings: filterSettingsPayload,
         }),
       });
       const json = (await res.json()) as ReportEditorFiltersResponse;
@@ -882,17 +1202,22 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
 
       setEditAvailableFilters(availableFilters);
       setEditSelectedFilters(selectedFilters);
+      const nextSettings: Record<string, SelectFilterSettingsDraft> = {};
+      for (const filter of availableFilters) {
+        const filterCode = String(filter.filter_code ?? "").trim();
+        if (!filterCode) {
+          continue;
+        }
+        if (normalizeFilterType(filter.type) !== "select") {
+          continue;
+        }
+        nextSettings[filterCode] = toSelectFilterSettingsDraft(filter);
+      }
+      setEditFilterSettings(nextSettings);
       setFilters(
         availableFilters
           .filter((filter) => selectedFilters.includes(String(filter.filter_code)))
-          .map((filter) => ({
-            filter_code: String(filter.filter_code),
-            type: String(filter.type ?? "select"),
-            label: String(filter.label ?? filter.filter_code),
-            description: filter.description ?? null,
-            table: filter.table ?? null,
-            column: filter.column ?? null,
-          }))
+          .map((filter) => toReportFilterMenuItem(filter))
       );
 
       const params = new URLSearchParams(searchParams.toString());
@@ -922,10 +1247,60 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
   }
 
   const groupedEditColumns = useMemo(() => groupedColumns(editAvailableColumns), [editAvailableColumns]);
+  const selectedEditFilterSet = useMemo(
+    () => new Set(editSelectedFilters.map((filterCode) => String(filterCode))),
+    [editSelectedFilters]
+  );
+  const editableFilterCodeSet = useMemo(
+    () => new Set(editAvailableFilters.map((filter) => String(filter.filter_code))),
+    [editAvailableFilters]
+  );
+  const activeEditableFilters = useMemo(
+    () =>
+      editAvailableFilters.filter((filter) =>
+        selectedEditFilterSet.has(String(filter.filter_code))
+      ),
+    [editAvailableFilters, selectedEditFilterSet]
+  );
+  const unusedEditableFilters = useMemo(
+    () =>
+      editAvailableFilters.filter(
+        (filter) => !selectedEditFilterSet.has(String(filter.filter_code))
+      ),
+    [editAvailableFilters, selectedEditFilterSet]
+  );
+  const visibleFilters = useMemo(() => {
+    if (!isReportOrComponentEditMode || editAvailableFilters.length === 0) {
+      return filters;
+    }
+    return activeEditableFilters.map((filter) => toReportFilterMenuItem(filter));
+  }, [activeEditableFilters, editAvailableFilters.length, filters, isReportOrComponentEditMode]);
   const editSelectedFiltersSignature = useMemo(
     () => JSON.stringify([...editSelectedFilters].sort((left, right) => left.localeCompare(right))),
     [editSelectedFilters]
   );
+  const editSelectedFilterSettingsSignature = useMemo(() => {
+    const pairs = [...editSelectedFilters]
+      .sort((left, right) => left.localeCompare(right))
+      .map((filterCode) => {
+        const filter = editAvailableFilters.find(
+          (item) => String(item.filter_code ?? "").trim() === filterCode
+        );
+        const filterType = normalizeFilterType(filter?.type);
+        if (filterType !== "select") {
+          return [filterCode, null] as const;
+        }
+        const draft = editFilterSettings[filterCode];
+        return [
+          filterCode,
+          {
+            default_value: String(draft?.default_value ?? "").trim() || null,
+            include_all: draft?.include_all === true,
+          },
+        ] as const;
+      });
+    return JSON.stringify(pairs);
+  }, [editAvailableFilters, editFilterSettings, editSelectedFilters]);
   const persistedEditSelectedFiltersSignature = useMemo(
     () =>
       JSON.stringify(
@@ -936,7 +1311,124 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
       ),
     [editAvailableFilters]
   );
-  const editFiltersDirty = editSelectedFiltersSignature !== persistedEditSelectedFiltersSignature;
+  const persistedEditSelectedFilterSettingsSignature = useMemo(() => {
+    const pairs = editAvailableFilters
+      .filter((filter) => filter.selected)
+      .map((filter) => {
+        const filterCode = String(filter.filter_code ?? "").trim();
+        const filterType = normalizeFilterType(filter.type);
+        if (filterType !== "select") {
+          return [filterCode, null] as const;
+        }
+        return [
+          filterCode,
+          {
+            default_value:
+              filter.settings?.default_value === null || filter.settings?.default_value === undefined
+                ? null
+                : String(filter.settings.default_value).trim() || null,
+            include_all: filter.settings?.include_all === true,
+          },
+        ] as const;
+      })
+      .sort((left, right) => left[0].localeCompare(right[0]));
+    return JSON.stringify(pairs);
+  }, [editAvailableFilters]);
+  const editFiltersDirty =
+    editSelectedFiltersSignature !== persistedEditSelectedFiltersSignature ||
+    editSelectedFilterSettingsSignature !== persistedEditSelectedFilterSettingsSignature;
+  const globalEditDirty =
+    editFiltersDirty ||
+    (isComponentEditMode && componentEditDirty) ||
+    (isReportEditMode && reportEditDirty);
+  const globalEditSaving =
+    savingEditFilters ||
+    (isComponentEditMode && componentEditSaving) ||
+    (isReportEditMode && reportEditSaving);
+  const showGlobalSaveBar = isReportOrComponentEditMode && (globalEditDirty || globalEditSaving);
+
+  async function saveAllEdits() {
+    if (!isReportOrComponentEditMode) {
+      return;
+    }
+    if (editFiltersDirty) {
+      await saveEditFilters();
+    }
+    if (isComponentEditMode && componentEditDirty && reportRoute && reportComponentId) {
+      window.dispatchEvent(
+        new CustomEvent(EDIT_COMPONENT_SAVE_REQUEST_EVENT, {
+          detail: {
+            reportId: reportRoute,
+            reportComponentId,
+          },
+        })
+      );
+    }
+    if (isReportEditMode && reportEditDirty && reportRoute) {
+      window.dispatchEvent(
+        new CustomEvent(REPORT_EDIT_SAVE_REQUEST_EVENT, {
+          detail: {
+            reportId: reportRoute,
+          },
+        })
+      );
+    }
+  }
+
+  function undoAllEdits() {
+    if (!isReportOrComponentEditMode) {
+      return;
+    }
+
+    if (editFiltersDirty) {
+      const restoredSelectedFilters = editAvailableFilters
+        .filter((filter) => filter.selected)
+        .map((filter) => String(filter.filter_code))
+        .sort((left, right) => left.localeCompare(right));
+      setEditSelectedFilters(restoredSelectedFilters);
+
+      const restoredSettings: Record<string, SelectFilterSettingsDraft> = {};
+      for (const filter of editAvailableFilters) {
+        const filterCode = String(filter.filter_code ?? "").trim();
+        if (!filterCode) {
+          continue;
+        }
+        if (normalizeFilterType(filter.type) !== "select") {
+          continue;
+        }
+        restoredSettings[filterCode] = toSelectFilterSettingsDraft(filter);
+      }
+      setEditFilterSettings(restoredSettings);
+
+      setFilters(
+        editAvailableFilters
+          .filter((filter) => filter.selected)
+          .map((filter) => toReportFilterMenuItem(filter))
+      );
+      setEditFilterError(null);
+      setEditFilterMessage(null);
+    }
+
+    if (isComponentEditMode && componentEditDirty && reportRoute && reportComponentId) {
+      window.dispatchEvent(
+        new CustomEvent(EDIT_COMPONENT_RESET_REQUEST_EVENT, {
+          detail: {
+            reportId: reportRoute,
+            reportComponentId,
+          },
+        })
+      );
+    }
+    if (isReportEditMode && reportEditDirty && reportRoute) {
+      window.dispatchEvent(
+        new CustomEvent(REPORT_EDIT_RESET_REQUEST_EVENT, {
+          detail: {
+            reportId: reportRoute,
+          },
+        })
+      );
+    }
+  }
 
   function startSidebarResize(event: React.MouseEvent<HTMLDivElement>) {
     if (window.innerWidth < 1024) {
@@ -965,25 +1457,38 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
     window.addEventListener("mouseup", handleUp);
   }
 
-  const mobileModeLabel =
-    menuMode === "reports"
+  const railBackgroundColor = darkMode ? "#ffffff" : "#0a0a0a";
+  const railTextColor = darkMode ? "#111827" : "#f8fafc";
+  const railMutedTextColor = darkMode ? "#4b5563" : "#94a3b8";
+  const railBorderColor = darkMode ? "#d1d5db" : "#1f2937";
+  const panelBackgroundColor = "var(--app-surface)";
+  const panelTextColor = "var(--app-text-strong)";
+  const panelBorderColor = "var(--app-border)";
+  const activeRailItemBackgroundColor = panelBackgroundColor;
+  const activeRailItemTextColor = panelTextColor;
+  const reportsActive = menuMode === "reports";
+  const homeActive = false;
+  const filtersActive = menuMode === "filters";
+  const columnsActive = menuMode === "columns";
+  const settingsActive = menuMode === "settings";
+  const mobileModeLabel = homeActive
+    ? "Home"
+    : menuMode === "reports"
       ? "Reports"
       : menuMode === "filters"
         ? "Filters"
-        : menuMode === "edit_filters"
-          ? "Edit Filters"
-          : menuMode === "columns"
-            ? "Columns"
-            : "Settings";
+        : menuMode === "columns"
+          ? "Columns"
+          : "Settings";
 
   return (
     <>
       <div
         className="fixed inset-x-0 top-0 z-30 border-b px-4 py-3 lg:hidden"
         style={{
-          borderColor: "var(--app-border)",
-          backgroundColor: "var(--app-surface)",
-          color: "var(--app-text-strong)",
+          borderColor: railBorderColor,
+          backgroundColor: railBackgroundColor,
+          color: railTextColor,
         }}
       >
         <div className="flex items-center justify-between gap-3">
@@ -991,14 +1496,14 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
             type="button"
             onClick={() => setMobileMenuOpen((current) => !current)}
             className="rounded border px-3 py-1 text-sm font-medium"
-            style={{ borderColor: "var(--app-border)", color: "var(--app-text-strong)" }}
+            style={{ borderColor: railBorderColor, color: railTextColor }}
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-sidebar"
           >
             {mobileMenuOpen ? "Close" : "Menu"}
           </button>
           <span className="text-sm font-semibold">Analytics</span>
-          <span className="text-xs" style={{ color: "var(--app-text-muted)" }}>
+          <span className="text-xs" style={{ color: railMutedTextColor }}>
             {mobileModeLabel}
           </span>
         </div>
@@ -1016,107 +1521,119 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
 
       <nav
         id="mobile-sidebar"
-        className={`fixed left-0 z-30 overflow-auto border-r border-b p-4 transition-transform duration-200 lg:top-0 lg:z-20 lg:h-screen lg:w-[var(--sidebar-width)] lg:border-b-0 lg:p-6 ${
+        className={`fixed left-0 z-30 overflow-hidden border-r border-b transition-transform duration-200 lg:top-0 lg:z-20 lg:h-screen lg:w-[var(--sidebar-width)] lg:border-b-0 ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         } top-14 h-[calc(100dvh-3.5rem)] w-80 max-w-[calc(100vw-1rem)]`}
         style={{
-          borderColor: "var(--app-border)",
-          backgroundColor: "var(--app-surface)",
-          color: "var(--app-text-strong)",
+          borderColor: railBorderColor,
+          backgroundColor: railBackgroundColor,
+          color: railTextColor,
         }}
       >
-        <div>
-          <Link
-            href="/"
-            onClick={() => setMobileMenuOpen(false)}
-            className="mb-4 block rounded-md border px-3 py-2 text-sm font-medium"
-            style={{
-              borderColor: pathname === "/" ? "var(--app-control-track-active)" : "var(--app-border)",
-              backgroundColor: pathname === "/" ? "var(--app-surface-muted)" : "transparent",
-              color: "var(--app-text-strong)",
-            }}
+        <div className="flex h-full min-w-0">
+          <div
+            className="flex w-16 shrink-0 flex-col items-center justify-between py-3"
+            style={{ backgroundColor: railBackgroundColor }}
           >
-            Home
-          </Link>
-          <div className="mb-4 rounded-md border p-1" style={{ borderColor: "var(--app-border)" }}>
-            <div
-              className={`grid gap-1 ${
-                reportRoute
-                  ? isComponentEditMode
-                    ? "grid-cols-5"
-                    : isReportEditMode
-                      ? "grid-cols-4"
-                      : "grid-cols-3"
-                  : "grid-cols-2"
-              }`}
-            >
+            <div className="flex w-full flex-col items-center gap-2">
+              <Link
+                href="/"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                }}
+                className="inline-flex h-11 w-full items-center justify-center rounded-none transition-colors"
+                style={{
+                  backgroundColor: homeActive ? activeRailItemBackgroundColor : "transparent",
+                  color: homeActive ? activeRailItemTextColor : railTextColor,
+                }}
+                aria-label="Home"
+                title="Home"
+              >
+                <NavIcon name="home" className="h-5 w-5" />
+              </Link>
               <button
                 type="button"
                 onClick={() => setMenuMode("reports")}
-                className="rounded px-2 py-1 text-xs font-medium"
+                className="inline-flex h-11 w-full items-center justify-center rounded-none transition-colors"
                 style={{
-                  backgroundColor: menuMode === "reports" ? "var(--app-control-track-active)" : "var(--app-surface)",
-                  color: menuMode === "reports" ? "var(--app-control-thumb)" : "var(--app-text-muted)",
+                  backgroundColor: reportsActive ? activeRailItemBackgroundColor : "transparent",
+                  color: reportsActive ? activeRailItemTextColor : railTextColor,
                 }}
+                aria-label="Reports"
+                title="Reports"
               >
-                Reports
+                <NavIcon name="reports" className="h-5 w-5" />
               </button>
               {reportRoute && (
                 <button
                   type="button"
                   onClick={() => setMenuMode("filters")}
-                  className="rounded px-2 py-1 text-xs font-medium"
+                  className="inline-flex h-11 w-full items-center justify-center rounded-none transition-colors"
                   style={{
-                    backgroundColor: menuMode === "filters" ? "var(--app-control-track-active)" : "var(--app-surface)",
-                    color: menuMode === "filters" ? "var(--app-control-thumb)" : "var(--app-text-muted)",
+                    backgroundColor: filtersActive ? activeRailItemBackgroundColor : "transparent",
+                    color: filtersActive ? activeRailItemTextColor : railTextColor,
                   }}
+                  aria-label="Filters"
+                  title="Filters"
                 >
-                  Filters
-                </button>
-              )}
-              {reportRoute && isReportOrComponentEditMode && (
-                <button
-                  type="button"
-                  onClick={() => setMenuMode("edit_filters")}
-                  className="rounded px-2 py-1 text-xs font-medium"
-                  style={{
-                    backgroundColor: menuMode === "edit_filters" ? "var(--app-control-track-active)" : "var(--app-surface)",
-                    color: menuMode === "edit_filters" ? "var(--app-control-thumb)" : "var(--app-text-muted)",
-                  }}
-                >
-                  Edit Filters
+                  <NavIcon name="filters" className="h-5 w-5" />
                 </button>
               )}
               {isComponentEditMode && (
                 <button
                   type="button"
                   onClick={() => setMenuMode("columns")}
-                  className="rounded px-2 py-1 text-xs font-medium"
+                  className="inline-flex h-11 w-full items-center justify-center rounded-none transition-colors"
                   style={{
-                    backgroundColor: menuMode === "columns" ? "var(--app-control-track-active)" : "var(--app-surface)",
-                    color: menuMode === "columns" ? "var(--app-control-thumb)" : "var(--app-text-muted)",
+                    backgroundColor: columnsActive ? activeRailItemBackgroundColor : "transparent",
+                    color: columnsActive ? activeRailItemTextColor : railTextColor,
                   }}
+                  aria-label="Columns"
+                  title="Columns"
                 >
-                  Columns
+                  <NavIcon name="columns" className="h-5 w-5" />
                 </button>
               )}
               <button
                 type="button"
                 onClick={() => setMenuMode("settings")}
-                className="rounded px-2 py-1 text-xs font-medium"
+                className="inline-flex h-11 w-full items-center justify-center rounded-none transition-colors"
                 style={{
-                  backgroundColor: menuMode === "settings" ? "var(--app-control-track-active)" : "var(--app-surface)",
-                  color: menuMode === "settings" ? "var(--app-control-thumb)" : "var(--app-text-muted)",
+                  backgroundColor: settingsActive ? activeRailItemBackgroundColor : "transparent",
+                  color: settingsActive ? activeRailItemTextColor : railTextColor,
                 }}
+                aria-label="Settings"
+                title="Settings"
               >
-                Settings
+                <SettingsIcon className="h-5 w-5" />
               </button>
+            </div>
+            <div className="text-[10px] font-medium uppercase tracking-wide" style={{ color: railMutedTextColor }}>
+              Menu
             </div>
           </div>
 
-          <div className="flex flex-col gap-6">
+          <div className="flex min-w-0 flex-1 flex-col" style={{ backgroundColor: panelBackgroundColor, color: panelTextColor }}>
+            <div className="shrink-0 border-b px-4 py-3 lg:px-6" style={{ borderColor: panelBorderColor }}>
+              <div className="text-sm font-semibold">{mobileModeLabel}</div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto">
+              <div className="flex flex-col gap-6 px-4 py-4 lg:px-6 lg:py-6">
             {menuMode === "reports" && (
               <>
+                <div>
+                  <Link
+                    href="/reports"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block rounded px-2 py-1 text-sm font-medium"
+                    style={{
+                      backgroundColor: pathname === "/reports" ? "var(--app-surface-muted)" : "transparent",
+                      color: "var(--app-text-strong)",
+                    }}
+                  >
+                    All Reports
+                  </Link>
+                </div>
                 {categories.map((cat) => (
                   <div key={cat.categoryKey}>
                     <div className="mb-2 text-xs font-medium" style={{ color: "var(--app-text-muted)" }}>
@@ -1181,33 +1698,58 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
 
             {reportRoute && menuMode === "filters" && (
               <div>
-                {filters.length === 0 && (
+                {visibleFilters.length === 0 && (
                   <p className="text-xs" style={{ color: "var(--app-text-muted)" }}>
                     No filters for this report.
                   </p>
                 )}
-                {filters.length > 0 && (
+                {visibleFilters.length > 0 && (
                   <div className={`space-y-3 ${loadingFilterData ? "opacity-60" : "opacity-100"}`}>
-                    {filters.map((filter) => {
+                    {visibleFilters.map((filter) => {
                       const filterType = normalizeFilterType(filter.type);
                       const value = filterValue(filter.filter_code);
                       const options = filterOptions(filter);
                       const hasDescription = Boolean(filter.description && filter.description.trim().length > 0);
                       const multiValue = splitMultiValue(value);
+                      const canRemoveInEditMode =
+                        isReportOrComponentEditMode && editableFilterCodeSet.has(String(filter.filter_code));
+                      const selectSettings = editFilterSettings[String(filter.filter_code)];
+                      const includeAllEnabled =
+                        filterType === "select" &&
+                        (isReportOrComponentEditMode
+                          ? (selectSettings?.include_all === true)
+                          : (filter.settings?.include_all === true));
+                      const canEditSelectSettings =
+                        isReportOrComponentEditMode && filterType === "select" && canRemoveInEditMode;
 
                       return (
                         <label key={filter.filter_code} className="relative flex flex-col text-sm">
                           <span className="flex items-center justify-between gap-2">
                             <span>{filter.label}</span>
-                            {hasDescription && (
-                              <InfoModalTrigger
-                                header={filter.label}
-                                body={filter.description}
-                                triggerAriaLabel={`Show info for ${filter.label}`}
-                                dialogId={`filter-info-dialog-${filter.filter_code}`}
-                                closeButtonLabel="Close filter info"
-                              />
-                            )}
+                            <span className="flex items-center gap-2">
+                              {hasDescription && (
+                                <InfoModalTrigger
+                                  header={filter.label}
+                                  body={filter.description}
+                                  triggerAriaLabel={`Show info for ${filter.label}`}
+                                  dialogId={`filter-info-dialog-${filter.filter_code}`}
+                                  closeButtonLabel="Close filter info"
+                                />
+                              )}
+                              {canRemoveInEditMode && (
+                                <button
+                                  type="button"
+                                  onClick={() => applyEditFilterChange(String(filter.filter_code), false)}
+                                  disabled={savingEditFilters}
+                                  className="rounded border px-1.5 py-0 text-xs font-semibold leading-5"
+                                  style={{ borderColor: "var(--app-border)", color: "var(--app-text-strong)" }}
+                                  aria-label={`Remove ${filter.label}`}
+                                  title={`Remove ${filter.label}`}
+                                >
+                                  X
+                                </button>
+                              )}
+                            </span>
                           </span>
                           {filterType === "multi_select" ? (
                             <select
@@ -1237,26 +1779,65 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
                               ))}
                             </select>
                           ) : filterType === "select" ? (
-                            <select
-                              value={value}
-                              onChange={(e) => applyFilterChange(filter.filter_code, e.target.value)}
-                              className="mt-1 rounded border px-2 py-1"
-                              style={{
-                                borderColor: "var(--app-border)",
-                                backgroundColor: "var(--app-surface)",
-                                color: "var(--app-text-strong)",
-                              }}
-                              disabled={loadingFilterData}
-                            >
-                              {options.length === 0 && value !== "" && (
-                                <option value={value}>{value}</option>
+                            <>
+                              <select
+                                value={value}
+                                onChange={(e) => applyFilterChange(filter.filter_code, e.target.value)}
+                                className="mt-1 rounded border px-2 py-1"
+                                style={{
+                                  borderColor: "var(--app-border)",
+                                  backgroundColor: "var(--app-surface)",
+                                  color: "var(--app-text-strong)",
+                                }}
+                                disabled={loadingFilterData}
+                              >
+                                {includeAllEnabled && <option value="">All</option>}
+                                {options.length === 0 && value !== "" && (
+                                  <option value={value}>{value}</option>
+                                )}
+                                {options.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                              {canEditSelectSettings && (
+                                <div
+                                  className="mt-2 grid grid-cols-[1fr_auto] items-center gap-2 rounded border p-2"
+                                  style={{ borderColor: "var(--app-border)" }}
+                                >
+                                  <input
+                                    value={selectSettings?.default_value ?? ""}
+                                    onChange={(event) =>
+                                      applyEditFilterSettingDefaultValue(
+                                        String(filter.filter_code),
+                                        event.target.value
+                                      )
+                                    }
+                                    className="rounded border px-2 py-1 text-xs"
+                                    style={{
+                                      borderColor: "var(--app-border)",
+                                      backgroundColor: "var(--app-surface)",
+                                      color: "var(--app-text-strong)",
+                                    }}
+                                    placeholder="Default value (optional)"
+                                  />
+                                  <label className="flex items-center gap-2 text-xs">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectSettings?.include_all === true}
+                                      onChange={(event) =>
+                                        applyEditFilterSettingIncludeAll(
+                                          String(filter.filter_code),
+                                          event.target.checked
+                                        )
+                                      }
+                                    />
+                                    Include All
+                                  </label>
+                                </div>
                               )}
-                              {options.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
+                            </>
                           ) : (
                             <input
                               value={value}
@@ -1275,81 +1856,89 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
                     })}
                   </div>
                 )}
-              </div>
-            )}
 
-            {reportRoute && isReportOrComponentEditMode && menuMode === "edit_filters" && (
-              <div>
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <div className="text-xs" style={{ color: "var(--app-text-muted)" }}>
-                    Select which filters are used by this report.
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void saveEditFilters()}
-                    disabled={loadingEditFilters || savingEditFilters || !editFiltersDirty}
-                    className="rounded border px-2 py-1 text-xs"
-                    style={{ borderColor: "var(--app-border)", color: "var(--app-text-strong)" }}
-                  >
-                    {savingEditFilters ? "Saving..." : "Save"}
-                  </button>
-                </div>
+                {isReportOrComponentEditMode && (
+                  <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--app-border)" }}>
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <div className="text-xs" style={{ color: "var(--app-text-muted)" }}>
+                        Manage report filters.
+                      </div>
+                    </div>
 
-                {editFilterError && (
-                  <p className="mb-2 text-xs" style={{ color: "var(--app-danger, #b91c1c)" }}>
-                    {editFilterError}
-                  </p>
-                )}
-                {editFilterMessage && (
-                  <p className="mb-2 text-xs" style={{ color: "var(--app-success, #166534)" }}>
-                    {editFilterMessage}
-                  </p>
-                )}
+                    {editFilterError && (
+                      <p className="mb-2 text-xs" style={{ color: "var(--app-danger, #b91c1c)" }}>
+                        {editFilterError}
+                      </p>
+                    )}
+                    {editFilterMessage && (
+                      <p className="mb-2 text-xs" style={{ color: "var(--app-success, #166534)" }}>
+                        {editFilterMessage}
+                      </p>
+                    )}
 
-                {loadingEditFilters && (
-                  <p className="text-xs" style={{ color: "var(--app-text-muted)" }}>
-                    Loading filters...
-                  </p>
-                )}
+                    {loadingEditFilters && (
+                      <p className="text-xs" style={{ color: "var(--app-text-muted)" }}>
+                        Loading filters...
+                      </p>
+                    )}
 
-                {!loadingEditFilters && editAvailableFilters.length === 0 && (
-                  <p className="text-xs" style={{ color: "var(--app-text-muted)" }}>
-                    No available filters found in `meta.filters`.
-                  </p>
-                )}
+                    {!loadingEditFilters && editAvailableFilters.length === 0 && (
+                      <p className="text-xs" style={{ color: "var(--app-text-muted)" }}>
+                        No available filters found in `meta.filters`.
+                      </p>
+                    )}
 
-                {!loadingEditFilters && editAvailableFilters.length > 0 && (
-                  <div className="space-y-1">
-                    {editAvailableFilters.map((filter) => {
-                      const filterCode = String(filter.filter_code);
-                      const isChecked = editSelectedFilters.includes(filterCode);
-                      const hasDescription = Boolean(filter.description && filter.description.trim().length > 0);
-                      return (
-                        <label
-                          key={filterCode}
-                          className="flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-1 text-sm"
-                          style={{ backgroundColor: isChecked ? "var(--app-surface-muted)" : "transparent" }}
-                        >
-                          <span className="flex min-w-0 items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={(event) => applyEditFilterChange(filterCode, event.target.checked)}
-                            />
-                            <span className="truncate">{filter.label || filterCode}</span>
-                          </span>
-                          {hasDescription && (
-                            <InfoModalTrigger
-                              header={filter.label || filterCode}
-                              body={filter.description}
-                              triggerAriaLabel={`Show info for ${filter.label || filterCode}`}
-                              dialogId={`edit-filter-info-dialog-${filterCode}`}
-                              closeButtonLabel="Close filter info"
-                            />
+                    {!loadingEditFilters && editAvailableFilters.length > 0 && (
+                      <div className="space-y-4">
+                        <div>
+                          <div className="mb-2 text-xs font-medium" style={{ color: "var(--app-text-muted)" }}>
+                            Unused Filters
+                          </div>
+                          {unusedEditableFilters.length === 0 && (
+                            <p className="text-xs" style={{ color: "var(--app-text-muted)" }}>
+                              No unused filters available.
+                            </p>
                           )}
-                        </label>
-                      );
-                    })}
+                          {unusedEditableFilters.length > 0 && (
+                            <div className="space-y-1">
+                              {unusedEditableFilters.map((filter) => {
+                                const filterCode = String(filter.filter_code);
+                                const hasDescription = Boolean(filter.description && filter.description.trim().length > 0);
+                                return (
+                                  <div
+                                    key={filterCode}
+                                    className="flex items-center justify-between gap-2 rounded px-2 py-1 text-sm"
+                                    style={{ backgroundColor: "transparent" }}
+                                  >
+                                    <span className="truncate">{filter.label || filterCode}</span>
+                                    <span className="flex items-center gap-2">
+                                      {hasDescription && (
+                                        <InfoModalTrigger
+                                          header={filter.label || filterCode}
+                                          body={filter.description}
+                                          triggerAriaLabel={`Show info for ${filter.label || filterCode}`}
+                                          dialogId={`unused-filter-info-dialog-${filterCode}`}
+                                          closeButtonLabel="Close filter info"
+                                        />
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => applyEditFilterChange(filterCode, true)}
+                                        disabled={savingEditFilters}
+                                        className="rounded border px-2 py-0.5 text-xs"
+                                        style={{ borderColor: "var(--app-border)", color: "var(--app-text-strong)" }}
+                                      >
+                                        Add
+                                      </button>
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1416,8 +2005,38 @@ export default function SidebarClient({ categories }: SidebarClientProps) {
                 />
               </div>
             )}
+            </div>
           </div>
+          {showGlobalSaveBar && (
+            <div
+              className="shrink-0 border-t px-4 pb-4 pt-3 lg:px-6 lg:pb-6"
+              style={{ borderColor: panelBorderColor, backgroundColor: panelBackgroundColor }}
+            >
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={undoAllEdits}
+                  disabled={loadingEditFilters || globalEditSaving || !globalEditDirty}
+                  className="w-full rounded border px-3 py-2 text-sm font-medium"
+                  style={{ borderColor: "var(--app-border)", color: "var(--app-text-strong)" }}
+                >
+                  Undo Changes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void saveAllEdits()}
+                  disabled={loadingEditFilters || globalEditSaving || !globalEditDirty}
+                  className="w-full rounded border px-3 py-2 text-sm font-medium"
+                  style={{ borderColor: "var(--app-border)", color: "var(--app-text-strong)" }}
+                  aria-live="polite"
+                >
+                  {globalEditSaving ? "Saving changes..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
+      </div>
         <div
           role="separator"
           aria-orientation="vertical"

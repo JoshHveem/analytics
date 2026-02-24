@@ -3,7 +3,10 @@ import { withAuthedDb } from "./authed-db";
 export type ReportFilterConfig = {
   filter_code: string;
   type: string;
-  default_value: string | null;
+  settings: {
+    default_value: string | null;
+    include_all: boolean;
+  };
   label: string;
   description: string | null;
   table: string | null;
@@ -47,6 +50,26 @@ function normalizeFilterCode(args: {
   return filterCode;
 }
 
+function parseFilterSettings(raw: unknown): {
+  default_value: string | null;
+  include_all: boolean;
+} {
+  const settings =
+    raw && typeof raw === "object" && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {};
+  const defaultValueRaw = settings.default_value;
+  const default_value =
+    defaultValueRaw === null || defaultValueRaw === undefined
+      ? null
+      : String(defaultValueRaw).trim() || null;
+  const include_all = settings.include_all === true;
+  return {
+    default_value,
+    include_all,
+  };
+}
+
 export async function getReportConfigByRoute(route: string): Promise<ReportConfig | null> {
   const normalizedRoute = normalizeRoute(route);
   if (!normalizedRoute) {
@@ -79,7 +102,7 @@ export async function getReportConfigByRoute(route: string): Promise<ReportConfi
     const filterResult = await db.query<{
       filter_code: string;
       type: string | null;
-      default_value: string | null;
+      settings: unknown;
       label: string | null;
       description: string | null;
       table: string | null;
@@ -89,7 +112,7 @@ export async function getReportConfigByRoute(route: string): Promise<ReportConfi
       SELECT
         rf.filter_code,
         COALESCE(rf.type, f.type, 'select') AS type,
-        rf.default_value,
+        rf.settings,
         f.label,
         f.description,
         f."table" AS table,
@@ -112,7 +135,7 @@ export async function getReportConfigByRoute(route: string): Promise<ReportConfi
       filters: filterResult.rows.map((row: {
         filter_code: string;
         type: string | null;
-        default_value: string | null;
+        settings: unknown;
         label: string | null;
         description: string | null;
         table: string | null;
@@ -124,7 +147,7 @@ export async function getReportConfigByRoute(route: string): Promise<ReportConfi
           column: row.column,
         }),
         type: String(row.type ?? "select"),
-        default_value: row.default_value ?? null,
+        settings: parseFilterSettings(row.settings),
         label: String(row.label ?? row.filter_code),
         description: row.description ?? null,
         table: row.table ?? null,

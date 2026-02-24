@@ -217,8 +217,11 @@ async function loadReportFilterDefinitions(db: Queryable, route: string): Promis
 async function optionsForFilterDefinition(args: {
   db: Queryable;
   filter: ReportFilterDefinition;
+  routeRef: string;
+  searchParams: URLSearchParams;
+  allFilterCodes: string[];
 }): Promise<unknown[]> {
-  const { db, filter } = args;
+  const { db, filter, routeRef, searchParams, allFilterCodes } = args;
   if (!filter.sourceSchema || !filter.sourceTable || !filter.sourceColumn) {
     return [];
   }
@@ -229,6 +232,70 @@ async function optionsForFilterDefinition(args: {
 
   if (!(await tableHasColumn(db, schema, table, column))) {
     return [];
+  }
+
+  const isUserSisFilter =
+    schema === "ref" && table === "users" && column === "sis_user_id";
+  if (isUserSisFilter) {
+    const scopedSearch = new URLSearchParams();
+    for (const filterCode of allFilterCodes) {
+      const value = String(searchParams.get(filterCode) ?? "").trim();
+      if (value) {
+        scopedSearch.set(filterCode, value);
+      }
+    }
+
+    const compiled = await buildTableComponentQuery({
+      db,
+      route: routeRef,
+      searchParams: scopedSearch,
+      filterParams: allFilterCodes,
+      selectMode: "all_available",
+    });
+
+    const idAlias = compiled.selectedAliases.find((alias) => alias === "users.sis_user_id");
+    if (!idAlias) {
+      return [];
+    }
+
+    const firstNameAlias = compiled.selectedAliases.find((alias) => alias === "users.first_name");
+    const lastNameAlias = compiled.selectedAliases.find((alias) => alias === "users.last_name");
+    if (!firstNameAlias || !lastNameAlias) {
+      return [];
+    }
+
+    const { rows } = await db.query<Record<string, unknown>>(
+      `
+      SELECT DISTINCT
+        q.${quoteIdentifier(idAlias)} AS ${quoteIdentifier("sis_user_id")},
+        q.${quoteIdentifier(firstNameAlias)} AS ${quoteIdentifier("first_name")},
+        q.${quoteIdentifier(lastNameAlias)} AS ${quoteIdentifier("last_name")}
+      FROM (${compiled.sql}) q
+      WHERE q.${quoteIdentifier(idAlias)} IS NOT NULL
+        AND q.${quoteIdentifier(firstNameAlias)} IS NOT NULL
+        AND q.${quoteIdentifier(lastNameAlias)} IS NOT NULL
+      ORDER BY q.${quoteIdentifier(idAlias)}
+      `,
+      compiled.values
+    );
+
+    return rows
+      .map((row) => {
+        const sisUserId = String(row.sis_user_id ?? "").trim();
+        if (!sisUserId) {
+          return null;
+        }
+        const first = String(row.first_name ?? "").trim();
+        const last = String(row.last_name ?? "").trim();
+        if (!first || !last) {
+          return null;
+        }
+        return {
+          sis_user_id: sisUserId,
+          label: `${first} ${last}`,
+        };
+      })
+      .filter((row): row is { sis_user_id: string; label: string } => row !== null);
   }
 
   const nameColumn = column.endsWith("_code") ? column.replace(/_code$/, "_name") : "";
@@ -270,11 +337,13 @@ async function optionsForFilterDefinition(args: {
 
 async function buildFilterMetaFromReportFilters(args: {
   db: Queryable;
+  routeRef: string;
   searchParams: URLSearchParams;
   filters: ReportFilterDefinition[];
 }) {
-  const { db, searchParams, filters } = args;
+  const { db, routeRef, searchParams, filters } = args;
   const selected: Record<string, string | null> = {};
+  const allFilterCodes = filters.map((filter) => filter.filterCode);
   for (const filter of filters) {
     selected[filter.filterCode] = String(searchParams.get(filter.filterCode) ?? "").trim() || null;
   }
@@ -287,6 +356,9 @@ async function buildFilterMetaFromReportFilters(args: {
         : await optionsForFilterDefinition({
             db,
             filter,
+            routeRef,
+            searchParams,
+            allFilterCodes,
           });
 
     const filterCodeKey = filter.filterCode.trim().toLowerCase();
@@ -343,6 +415,7 @@ export async function GET(request: Request) {
             ? {
                 ...(await buildFilterMetaFromReportFilters({
                   db,
+                  routeRef: route,
                   searchParams: normalizedSearch,
                   filters: reportFilters,
                 })),

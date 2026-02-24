@@ -35,11 +35,9 @@
 
 ### Current integration points
 - API routes:
-  - `app/api/reports/instructor-metrics/route.ts`
   - `app/api/reports/yearly-graduates/route.ts`
   - `app/api/reports/yearly-completers/route.ts` (re-exports yearly-graduates handler)
 - Client pages passing anonymize param and refetching on toggle:
-  - `app/reports/instructor-metrics/page.tsx`
   - `app/reports/yearly-graduates/page.tsx`
   - `app/reports/yearly-completers/page.tsx`
 

@@ -4,8 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ReportContainer } from "./ReportContainer";
 import { ReportErrorBanner } from "./ReportErrorBanner";
-import { ReportHeader } from "./ReportHeader";
 import { EditAction } from "./EditAction";
+
+const REPORT_EDIT_STATE_EVENT = "analytics:report-edit-state";
+const REPORT_EDIT_SAVE_REQUEST_EVENT = "analytics:report-edit-save-request";
+const REPORT_EDIT_RESET_REQUEST_EVENT = "analytics:report-edit-reset-request";
 
 type EditorComponent = {
   report_component_id: string;
@@ -49,6 +52,8 @@ export default function ReportEditorClient({ reportId }: { reportId: string }) {
   const [resolvedReportId, setResolvedReportId] = useState<string>(reportId);
   const [resolvedRoute, setResolvedRoute] = useState<string>(reportId);
   const [reportTitle, setReportTitle] = useState<string>(toTitleCase(reportId));
+  const [reportTitleDraft, setReportTitleDraft] = useState<string>(toTitleCase(reportId));
+  const [savingTitle, setSavingTitle] = useState(false);
   const [components, setComponents] = useState<EditorComponent[]>([]);
   const [availableComponents, setAvailableComponents] = useState<AvailableComponent[]>([]);
   const [newComponentCode, setNewComponentCode] = useState<string>("table");
@@ -84,7 +89,9 @@ export default function ReportEditorClient({ reportId }: { reportId: string }) {
 
       setResolvedReportId(String(json.report.report_id));
       setResolvedRoute(String(json.report.route));
-      setReportTitle(String(json.report.title));
+      const nextTitle = String(json.report.title);
+      setReportTitle(nextTitle);
+      setReportTitleDraft(nextTitle);
       setComponents(sortedComponents);
       setAvailableComponents(json.available_components ?? []);
       if ((json.available_components ?? []).length > 0) {
@@ -105,6 +112,8 @@ export default function ReportEditorClient({ reportId }: { reportId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const reportTitleDirty = reportTitleDraft.trim() !== reportTitle.trim();
 
   async function persistOrder(nextComponents: EditorComponent[]) {
     setSavingOrder(true);
@@ -136,6 +145,88 @@ export default function ReportEditorClient({ reportId }: { reportId: string }) {
     }
   }
 
+  async function saveReportTitle() {
+    const nextTitle = reportTitleDraft.trim();
+    if (!nextTitle || !reportTitleDirty || savingTitle) {
+      return;
+    }
+    setSavingTitle(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const res = await fetch("/api/reports/editor/report", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          report_id: resolvedReportId,
+          title: nextTitle,
+        }),
+      });
+      const json = (await res.json()) as EditorResponse;
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || "Failed to update report title");
+      }
+      setReportTitle(nextTitle);
+      setReportTitleDraft(nextTitle);
+      setMessage("Report name updated.");
+    } catch (e: unknown) {
+      setError(String(e));
+    } finally {
+      setSavingTitle(false);
+    }
+  }
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent(REPORT_EDIT_STATE_EVENT, {
+        detail: {
+          reportId,
+          isDirty: reportTitleDirty,
+          isSaving: savingTitle,
+        },
+      })
+    );
+  }, [reportId, reportTitleDirty, savingTitle]);
+
+  useEffect(() => {
+    function onSaveRequest(event: Event) {
+      const customEvent = event as CustomEvent<{ reportId?: string }>;
+      if (String(customEvent.detail?.reportId ?? "") !== reportId) {
+        return;
+      }
+      if (reportTitleDraft.trim().length === 0) {
+        setError("Report name is required.");
+        return;
+      }
+      void saveReportTitle();
+    }
+
+    window.addEventListener(REPORT_EDIT_SAVE_REQUEST_EVENT, onSaveRequest as EventListener);
+    return () => {
+      window.removeEventListener(REPORT_EDIT_SAVE_REQUEST_EVENT, onSaveRequest as EventListener);
+    };
+  }, [reportId, reportTitleDraft, saveReportTitle]);
+
+  useEffect(() => {
+    function onResetRequest(event: Event) {
+      const customEvent = event as CustomEvent<{ reportId?: string }>;
+      if (String(customEvent.detail?.reportId ?? "") !== reportId) {
+        return;
+      }
+      setReportTitleDraft(reportTitle);
+      setError(null);
+      setMessage(null);
+    }
+
+    window.addEventListener(REPORT_EDIT_RESET_REQUEST_EVENT, onResetRequest as EventListener);
+    return () => {
+      window.removeEventListener(REPORT_EDIT_RESET_REQUEST_EVENT, onResetRequest as EventListener);
+    };
+  }, [reportId, reportTitle]);
+
   function moveComponent(componentId: string, direction: "up" | "down") {
     if (savingOrder) {
       return;
@@ -166,10 +257,10 @@ export default function ReportEditorClient({ reportId }: { reportId: string }) {
         report_id: resolvedReportId,
         component_code: newComponentCode,
       };
-      if (newComponentCode === "table" && newBaseDatasetKey.trim().length > 0) {
+      if ((newComponentCode === "table" || newComponentCode === "conditional_bar") && newBaseDatasetKey.trim().length > 0) {
         body.base_dataset_key = newBaseDatasetKey.trim();
       }
-      if (newComponentCode === "table" && newSourceSchema.trim().length > 0) {
+      if ((newComponentCode === "table" || newComponentCode === "conditional_bar") && newSourceSchema.trim().length > 0) {
         body.source_schema = newSourceSchema.trim();
       }
 
@@ -198,7 +289,28 @@ export default function ReportEditorClient({ reportId }: { reportId: string }) {
   return (
     <div className="mx-auto w-full max-w-6xl">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <ReportHeader title={`Edit Report: ${reportTitle}`} description={null} />
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <input
+              value={reportTitleDraft}
+              onChange={(event) => setReportTitleDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setReportTitleDraft(reportTitle);
+                }
+              }}
+              className="w-full min-w-[16rem] rounded border px-2 py-1 text-xl font-bold"
+              style={{
+                borderColor: "var(--app-border)",
+                backgroundColor: "var(--app-surface)",
+                color: "var(--app-text-strong)",
+              }}
+              placeholder="Report name"
+              aria-label="Edit report name"
+            />
+          </div>
+        </div>
         <Link
           href={`/reports/${resolvedRoute}`}
           className="rounded border px-3 py-1 text-sm"
@@ -319,10 +431,10 @@ export default function ReportEditorClient({ reportId }: { reportId: string }) {
               )}
             </label>
 
-            {newComponentCode === "table" && (
+            {(newComponentCode === "table" || newComponentCode === "conditional_bar") && (
               <>
                 <label className="text-sm">
-                  <div className="mb-1">Base Dataset Key (optional if table template already has a valid spec)</div>
+                  <div className="mb-1">Base Dataset Key (optional if component template already has a valid spec)</div>
                   <input
                     value={newBaseDatasetKey}
                     onChange={(event) => setNewBaseDatasetKey(event.target.value)}

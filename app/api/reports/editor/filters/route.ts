@@ -15,12 +15,15 @@ type AvailableFilterRecord = {
   type: string | null;
   table: string | null;
   column: string | null;
+  settings: {
+    default_value: string | null;
+    include_all: boolean;
+  } | null;
 };
 
 type ReportFilterColumnCapabilities = {
   hasType: boolean;
-  hasDefaultValue: boolean;
-  defaultValueNullable: boolean;
+  hasSettings: boolean;
 };
 
 const SAFE_IDENT = /^[a-z_][a-z0-9_]*$/;
@@ -38,6 +41,41 @@ function normalizeFilterCode(value: unknown): string {
     throw new HttpError(400, { error: `Invalid filter_code: ${value}` });
   }
   return normalized;
+}
+
+function normalizeFilterType(value: unknown): "select" | "multi_select" | "text" {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "multi_select") {
+    return "multi_select";
+  }
+  if (normalized === "text") {
+    return "text";
+  }
+  return "select";
+}
+
+function parseJsonObject(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+function normalizeSelectFilterSettings(value: unknown): {
+  default_value: string | null;
+  include_all: boolean;
+} {
+  const raw = parseJsonObject(value);
+  const defaultValueRaw = raw.default_value;
+  const default_value =
+    defaultValueRaw === null || defaultValueRaw === undefined
+      ? null
+      : String(defaultValueRaw).trim() || null;
+  const include_all = raw.include_all === true;
+  return {
+    default_value,
+    include_all,
+  };
 }
 
 async function resolveReport(db: Queryable, reportRef: string): Promise<ReportRecord> {
@@ -101,23 +139,51 @@ async function listAvailableFilters(db: Queryable): Promise<AvailableFilterRecor
     filter_code: normalizeFilterCode(row.filter_code),
     label: row.label ?? null,
     description: row.description ?? null,
-    type: row.type ?? "select",
+    type: normalizeFilterType(row.type),
     table: row.table ?? null,
     column: row.column ?? null,
+    settings: null,
   }));
 }
 
-async function listSelectedFilters(db: Queryable, reportId: string): Promise<string[]> {
-  const { rows } = await db.query<{ filter_code: string }>(
+async function listSelectedFilterRows(
+  db: Queryable,
+  reportId: string
+): Promise<Array<{ filter_code: string; settings: unknown }>> {
+  const { rows } = await db.query<{ filter_code: string; settings: unknown }>(
     `
-    SELECT filter_code
+    SELECT filter_code, settings
     FROM meta.report_filters
     WHERE report_id = $1
     ORDER BY filter_code
     `,
     [reportId]
   );
-  return Array.from(new Set(rows.map((row) => normalizeFilterCode(row.filter_code))));
+  const deduped = new Map<string, { filter_code: string; settings: unknown }>();
+  for (const row of rows) {
+    const filterCode = normalizeFilterCode(row.filter_code);
+    if (!deduped.has(filterCode)) {
+      deduped.set(filterCode, { filter_code: filterCode, settings: row.settings });
+    }
+  }
+  return Array.from(deduped.values());
+}
+
+async function listSelectedFilters(db: Queryable, reportId: string): Promise<string[]> {
+  const selectedRows = await listSelectedFilterRows(db, reportId);
+  return selectedRows.map((row) => row.filter_code);
+}
+
+async function listSelectedFilterSettings(
+  db: Queryable,
+  reportId: string
+): Promise<Map<string, { default_value: string | null; include_all: boolean }>> {
+  const selectedRows = await listSelectedFilterRows(db, reportId);
+  const byFilter = new Map<string, { default_value: string | null; include_all: boolean }>();
+  for (const row of selectedRows) {
+    byFilter.set(row.filter_code, normalizeSelectFilterSettings(row.settings));
+  }
+  return byFilter;
 }
 
 async function getReportFilterColumnCapabilities(
@@ -129,14 +195,13 @@ async function getReportFilterColumnCapabilities(
     FROM information_schema.columns
     WHERE table_schema = 'meta'
       AND table_name = 'report_filters'
-      AND column_name IN ('type', 'default_value')
+      AND column_name IN ('type', 'settings')
     `
   );
   const byName = new Map(rows.map((row) => [String(row.column_name), String(row.is_nullable)] as const));
   return {
     hasType: byName.has("type"),
-    hasDefaultValue: byName.has("default_value"),
-    defaultValueNullable: byName.get("default_value") !== "NO",
+    hasSettings: byName.has("settings"),
   };
 }
 
@@ -145,8 +210,9 @@ async function applyReportFilters(args: {
   reportId: string;
   selectedFilters: string[];
   capabilities: ReportFilterColumnCapabilities;
+  settingsByFilter: Map<string, { default_value: string | null; include_all: boolean }>;
 }): Promise<void> {
-  const { db, reportId, selectedFilters, capabilities } = args;
+  const { db, reportId, selectedFilters, capabilities, settingsByFilter } = args;
 
   if (selectedFilters.length === 0) {
     await db.query(
@@ -168,15 +234,15 @@ async function applyReportFilters(args: {
     [reportId, selectedFilters]
   );
 
-  if (capabilities.hasType && capabilities.hasDefaultValue) {
+  if (capabilities.hasType && capabilities.hasSettings) {
     await db.query(
       `
-      INSERT INTO meta.report_filters (report_id, filter_code, type, default_value)
+      INSERT INTO meta.report_filters (report_id, filter_code, type, settings)
       SELECT
         $1,
         f.filter_code,
         COALESCE(NULLIF(trim(f.type), ''), 'select'),
-        ${capabilities.defaultValueNullable ? "NULL" : "''"}
+        '{}'::jsonb
       FROM meta.filters f
       WHERE f.filter_code = ANY($2::text[])
         AND NOT EXISTS (
@@ -188,10 +254,7 @@ async function applyReportFilters(args: {
       `,
       [reportId, selectedFilters]
     );
-    return;
-  }
-
-  if (capabilities.hasType) {
+  } else if (capabilities.hasType) {
     await db.query(
       `
       INSERT INTO meta.report_filters (report_id, filter_code, type)
@@ -210,17 +273,14 @@ async function applyReportFilters(args: {
       `,
       [reportId, selectedFilters]
     );
-    return;
-  }
-
-  if (capabilities.hasDefaultValue) {
+  } else if (capabilities.hasSettings) {
     await db.query(
       `
-      INSERT INTO meta.report_filters (report_id, filter_code, default_value)
+      INSERT INTO meta.report_filters (report_id, filter_code, settings)
       SELECT
         $1,
         f.filter_code,
-        ${capabilities.defaultValueNullable ? "NULL" : "''"}
+        '{}'::jsonb
       FROM meta.filters f
       WHERE f.filter_code = ANY($2::text[])
         AND NOT EXISTS (
@@ -232,26 +292,43 @@ async function applyReportFilters(args: {
       `,
       [reportId, selectedFilters]
     );
-    return;
+  } else {
+    await db.query(
+      `
+      INSERT INTO meta.report_filters (report_id, filter_code)
+      SELECT
+        $1,
+        f.filter_code
+      FROM meta.filters f
+      WHERE f.filter_code = ANY($2::text[])
+        AND NOT EXISTS (
+          SELECT 1
+          FROM meta.report_filters rf
+          WHERE rf.report_id = $1
+            AND rf.filter_code = f.filter_code
+        )
+      `,
+      [reportId, selectedFilters]
+    );
   }
 
-  await db.query(
-    `
-    INSERT INTO meta.report_filters (report_id, filter_code)
-    SELECT
-      $1,
-      f.filter_code
-    FROM meta.filters f
-    WHERE f.filter_code = ANY($2::text[])
-      AND NOT EXISTS (
-        SELECT 1
-        FROM meta.report_filters rf
-        WHERE rf.report_id = $1
-          AND rf.filter_code = f.filter_code
-      )
-    `,
-    [reportId, selectedFilters]
-  );
+  if (!capabilities.hasSettings) {
+    return;
+  }
+  for (const [filterCode, settings] of settingsByFilter.entries()) {
+    if (!selectedFilters.includes(filterCode)) {
+      continue;
+    }
+    await db.query(
+      `
+      UPDATE meta.report_filters
+      SET settings = $3::jsonb
+      WHERE report_id = $1
+        AND filter_code = $2
+      `,
+      [reportId, filterCode, JSON.stringify(settings)]
+    );
+  }
 }
 
 export async function GET(request: Request) {
@@ -268,6 +345,7 @@ export async function GET(request: Request) {
       const availableFilters = await listAvailableFilters(db);
       const selectedFilters = await listSelectedFilters(db, report.report_id);
       const selectedSet = new Set(selectedFilters);
+      const settingsByFilter = await listSelectedFilterSettings(db, report.report_id);
 
       return {
         ok: true,
@@ -279,6 +357,7 @@ export async function GET(request: Request) {
         available_filters: availableFilters.map((filter) => ({
           ...filter,
           selected: selectedSet.has(filter.filter_code),
+          settings: settingsByFilter.get(filter.filter_code) ?? null,
         })),
       };
     });
@@ -298,6 +377,7 @@ export async function PUT(request: Request) {
     const body = (await request.json()) as {
       report_id?: unknown;
       selected_filters?: unknown;
+      filter_settings?: unknown;
     };
 
     const reportRef = String(body.report_id ?? "").trim();
@@ -320,11 +400,36 @@ export async function PUT(request: Request) {
 
       const report = await resolveReport(db, reportRef);
       const availableFilters = await listAvailableFilters(db);
+      const availableByCode = new Map(
+        availableFilters.map((filter) => [filter.filter_code, filter] as const)
+      );
       const availableSet = new Set(availableFilters.map((filter) => filter.filter_code));
       for (const filterCode of selectedFilters) {
         if (!availableSet.has(filterCode)) {
           throw new HttpError(400, { error: `Unknown filter_code: ${filterCode}` });
         }
+      }
+
+      const filterSettingsRaw = parseJsonObject(body.filter_settings);
+      const settingsByFilter = new Map<string, { default_value: string | null; include_all: boolean }>();
+      for (const [rawFilterCode, rawSettings] of Object.entries(filterSettingsRaw)) {
+        const filterCode = normalizeFilterCode(rawFilterCode);
+        if (!selectedFilters.includes(filterCode)) {
+          throw new HttpError(400, {
+            error: `filter_settings provided for unselected filter_code: ${filterCode}`,
+          });
+        }
+        const filter = availableByCode.get(filterCode);
+        if (!filter) {
+          throw new HttpError(400, { error: `Unknown filter_code in filter_settings: ${filterCode}` });
+        }
+        const filterType = normalizeFilterType(filter.type);
+        if (filterType !== "select") {
+          throw new HttpError(400, {
+            error: `filter_settings only supported for select filters: ${filterCode}`,
+          });
+        }
+        settingsByFilter.set(filterCode, normalizeSelectFilterSettings(rawSettings));
       }
 
       const capabilities = await getReportFilterColumnCapabilities(db);
@@ -333,10 +438,12 @@ export async function PUT(request: Request) {
         reportId: report.report_id,
         selectedFilters,
         capabilities,
+        settingsByFilter,
       });
 
       const persistedSelectedFilters = await listSelectedFilters(db, report.report_id);
       const persistedSelectedSet = new Set(persistedSelectedFilters);
+      const persistedSettingsByFilter = await listSelectedFilterSettings(db, report.report_id);
       return {
         ok: true,
         report: {
@@ -347,6 +454,7 @@ export async function PUT(request: Request) {
         available_filters: availableFilters.map((filter) => ({
           ...filter,
           selected: persistedSelectedSet.has(filter.filter_code),
+          settings: persistedSettingsByFilter.get(filter.filter_code) ?? null,
         })),
       };
     });
@@ -359,7 +467,7 @@ export async function PUT(request: Request) {
     if (isPgPermissionError(error)) {
       return NextResponse.json(
         {
-          error: "Database role lacks SELECT/INSERT/DELETE permission on meta.report_filters.",
+          error: "Database role lacks SELECT/INSERT/DELETE/UPDATE permission on meta.report_filters.",
         },
         { status: 403 }
       );

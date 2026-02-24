@@ -31,15 +31,17 @@ type AvailableComponentRow = {
 
 const SAFE_IDENT = /^[a-z_][a-z0-9_]*$/;
 const SAFE_COMPONENT_CODE = /^[a-z0-9_-]+$/;
-const DEFAULT_SOURCE_SCHEMA = "dataset";
 
 function isObjectRecord(value: unknown): value is JsonObject {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
-function parseJsonObject(raw: unknown): JsonObject {
-  if (!raw || !isObjectRecord(raw)) {
-    return {};
+function parseJsonObject(raw: unknown, kind: string): JsonObject {
+  if (raw === null || raw === undefined) {
+    throw new HttpError(500, { error: `${kind} is missing; expected JSON object` });
+  }
+  if (!isObjectRecord(raw)) {
+    throw new HttpError(500, { error: `${kind} must be a JSON object` });
   }
   return raw;
 }
@@ -61,7 +63,7 @@ function assertSafeComponentCode(value: string): string {
 }
 
 function parseOrderFromSettings(raw: unknown): number | null {
-  const settings = parseJsonObject(raw);
+  const settings = parseJsonObject(raw, "meta.report_components.settings");
   const value = settings.component_order;
   if (typeof value === "number" && Number.isFinite(value)) {
     return Math.trunc(value);
@@ -70,29 +72,6 @@ function parseOrderFromSettings(raw: unknown): number | null {
     return Number.parseInt(value.trim(), 10);
   }
   return null;
-}
-
-function isValidTableSpec(raw: unknown): boolean {
-  const spec = parseJsonObject(raw);
-  const sources = Array.isArray(spec.sources) ? spec.sources : [];
-  const select = Array.isArray(spec.select) ? spec.select : [];
-  if (sources.length === 0 || select.length === 0) {
-    return false;
-  }
-  const baseCount = sources.filter((item) => isObjectRecord(item) && item.is_base === true).length;
-  return baseCount === 1;
-}
-
-function sanitizeSpecStructure(raw: unknown): JsonObject {
-  const spec = parseJsonObject(raw);
-  const sources = Array.isArray(spec.sources) ? spec.sources : [];
-  const joins = Array.isArray(spec.joins) ? spec.joins : [];
-  const select = Array.isArray(spec.select) ? spec.select : [];
-  return {
-    sources,
-    ...(joins.length > 0 ? { joins } : {}),
-    select,
-  };
 }
 
 function isPgPermissionError(error: unknown): boolean {
@@ -198,25 +177,6 @@ async function getAvailableComponents(
   }));
 }
 
-async function getFirstTableColumn(
-  db: Queryable,
-  schema: string,
-  table: string
-): Promise<string | null> {
-  const { rows } = await db.query<{ column_name: string }>(
-    `
-    SELECT column_name
-    FROM information_schema.columns
-    WHERE table_schema = $1
-      AND table_name = $2
-    ORDER BY ordinal_position
-    LIMIT 1
-    `,
-    [schema, table]
-  );
-  return rows[0]?.column_name ? String(rows[0].column_name) : null;
-}
-
 async function getNextComponentOrder(db: Queryable, reportId: string): Promise<number> {
   const { rows } = await db.query<{ max_order: number }>(
     `
@@ -264,8 +224,8 @@ export async function GET(request: Request) {
           component_name: row.component_name ?? null,
           component_description: row.component_description ?? null,
           component_order: parseOrderFromSettings(row.settings) ?? Number(row.component_order ?? 100000),
-          settings: parseJsonObject(row.settings),
-          spec: parseJsonObject(row.spec),
+          settings: parseJsonObject(row.settings, "meta.report_components.settings"),
+          spec: parseJsonObject(row.spec, "meta.report_components.spec"),
         })),
         available_components: availableComponents,
       };
@@ -286,15 +246,12 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       report_id?: unknown;
       component_code?: unknown;
-      base_dataset_key?: unknown;
       source_schema?: unknown;
     };
 
     const reportRef = String(body.report_id ?? "").trim();
     const componentCode = assertSafeComponentCode(String(body.component_code ?? ""));
-    const baseDatasetKeyRaw = String(body.base_dataset_key ?? "").trim();
     const sourceSchemaRaw = String(body.source_schema ?? "").trim();
-    const baseDatasetKey = baseDatasetKeyRaw ? assertSafeIdentifier(baseDatasetKeyRaw, "base_dataset_key") : null;
     const sourceSchema = sourceSchemaRaw ? assertSafeIdentifier(sourceSchemaRaw, "source_schema") : null;
 
     const payload = await withAuthedDb(async ({ db, user }) => {
@@ -321,46 +278,18 @@ export async function POST(request: Request) {
         throw new HttpError(404, { error: `Component "${componentCode}" not found` });
       }
 
-      const templateSettings = parseJsonObject(template.component_settings);
+      const templateSettings = parseJsonObject(
+        template.component_settings,
+        'meta.components.default_settings (or legacy "settings")'
+      );
       const nextSettings: JsonObject = {
         ...templateSettings,
         component_order: nextOrder,
       };
 
-      let nextSpec = sanitizeSpecStructure(template.spec);
+      const nextSpec = parseJsonObject(template.spec, "meta.components.spec");
 
-      if (componentCode === "table" && !isValidTableSpec(nextSpec)) {
-        if (!baseDatasetKey) {
-          throw new HttpError(400, {
-            error:
-              'Table component template has no usable spec. Provide "base_dataset_key" when creating.',
-          });
-        }
-        const baseSchema = sourceSchema ?? DEFAULT_SOURCE_SCHEMA;
-        const firstColumn = await getFirstTableColumn(db, baseSchema, baseDatasetKey);
-        if (!firstColumn) {
-          throw new HttpError(400, {
-            error: `Unable to infer initial select column for ${baseSchema}.${baseDatasetKey}`,
-          });
-        }
-        nextSpec = {
-          sources: [
-            {
-              dataset_key: baseDatasetKey,
-              is_base: true,
-              ...(sourceSchema ? { source_schema: sourceSchema } : {}),
-            },
-          ],
-          select: [
-            {
-              dataset_key: baseDatasetKey,
-              column: firstColumn,
-            },
-          ],
-        };
-      }
-
-      if (componentCode === "table" && sourceSchema) {
+      if ((componentCode === "table" || componentCode === "conditional_bar") && sourceSchema) {
         nextSettings.source_schema = sourceSchema;
       }
 
@@ -388,8 +317,8 @@ export async function POST(request: Request) {
           component_name: row.component_name ?? null,
           component_description: row.component_description ?? null,
           component_order: parseOrderFromSettings(row.settings) ?? Number(row.component_order ?? 100000),
-          settings: parseJsonObject(row.settings),
-          spec: parseJsonObject(row.spec),
+          settings: parseJsonObject(row.settings, "meta.report_components.settings"),
+          spec: parseJsonObject(row.spec, "meta.report_components.spec"),
         })),
       };
     });
@@ -479,8 +408,8 @@ export async function PATCH(request: Request) {
           component_name: row.component_name ?? null,
           component_description: row.component_description ?? null,
           component_order: parseOrderFromSettings(row.settings) ?? Number(row.component_order ?? 100000),
-          settings: parseJsonObject(row.settings),
-          spec: parseJsonObject(row.spec),
+          settings: parseJsonObject(row.settings, "meta.report_components.settings"),
+          spec: parseJsonObject(row.spec, "meta.report_components.spec"),
         })),
       };
     });

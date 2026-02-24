@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ReportHeader } from "../_components/ReportHeader";
-import { ReportComponentTable, type ReportComponentTableColumn } from "../_components/ReportComponentTable";
+import { ReportComponentTable, type ReportComponentTableColumn } from "../_reportComponents/ReportComponentTable";
 import { ReportContainer } from "../_components/ReportContainer";
 import { MetaChip } from "../_components/MetaChip";
 import { ReportErrorBanner } from "../_components/ReportErrorBanner";
@@ -729,3 +729,4 @@ export default function ProgramExitStatusPage() {
     </ReportPageSuspense>
   );
 }
+

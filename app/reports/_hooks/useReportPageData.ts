@@ -1,6 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { getAnonymizeEnabled, type TemplateReportConfigResponse } from "../report-template";
+import {
+  readReportFiltersReady,
+  REPORT_FILTERS_READY_EVENT,
+} from "../filter-readiness";
 
 type UseReportPageDataArgs<TRow> = {
   route: string;
@@ -32,8 +36,14 @@ export function useReportPageData<TRow>({
   const [rows, setRows] = useState<TRow[] | null>(initialRows);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filtersReady, setFiltersReady] = useState(false);
+  const refreshRequestIdRef = useRef(0);
 
   const refresh = useCallback(async () => {
+    if (!filtersReady) {
+      return;
+    }
+    const requestId = ++refreshRequestIdRef.current;
     setError(null);
     setLoading(true);
 
@@ -46,14 +56,66 @@ export function useReportPageData<TRow>({
         searchParams: new URLSearchParams(searchParamsKey),
         anonymize: getAnonymizeEnabled(),
       });
+      if (refreshRequestIdRef.current !== requestId) {
+        return;
+      }
       setRows(data);
     } catch (e: unknown) {
+      if (refreshRequestIdRef.current !== requestId) {
+        return;
+      }
       setRows(rowsOnFetchError ?? initialRows);
       setError(String(e));
     } finally {
+      if (refreshRequestIdRef.current !== requestId) {
+        return;
+      }
       setLoading(false);
     }
-  }, [fetchRows, initialRows, resetRowsBeforeFetch, rowsOnFetchError, searchParamsKey]);
+  }, [fetchRows, filtersReady, initialRows, resetRowsBeforeFetch, rowsOnFetchError, searchParamsKey]);
+
+  useEffect(() => {
+    refreshRequestIdRef.current += 1;
+    setFiltersReady(false);
+    setRows(resetRowsBeforeFetch ?? initialRows);
+    setLoading(false);
+  }, [initialRows, resetRowsBeforeFetch, route, searchParamsKey]);
+
+  useEffect(() => {
+    function applyReadyState() {
+      if (readReportFiltersReady(route, searchParamsKey)) {
+        setFiltersReady(true);
+      }
+    }
+
+    applyReadyState();
+
+    function onReadyStateChange(event: Event) {
+      const customEvent = event as CustomEvent<{
+        reportRoute?: string | null;
+        queryKey?: string | null;
+        ready?: boolean;
+      }>;
+      const eventRoute = String(customEvent.detail?.reportRoute ?? "").trim();
+      const eventQueryKey = String(customEvent.detail?.queryKey ?? "");
+      if (eventRoute !== route) {
+        return;
+      }
+      if (eventQueryKey !== searchParamsKey) {
+        return;
+      }
+      if (customEvent.detail?.ready) {
+        setFiltersReady(true);
+      } else {
+        setFiltersReady(false);
+      }
+    }
+
+    window.addEventListener(REPORT_FILTERS_READY_EVENT, onReadyStateChange as EventListener);
+    return () => {
+      window.removeEventListener(REPORT_FILTERS_READY_EVENT, onReadyStateChange as EventListener);
+    };
+  }, [route, searchParamsKey]);
 
   useEffect(() => {
     async function fetchReportConfig() {
@@ -76,8 +138,11 @@ export function useReportPageData<TRow>({
   }, [initialTitle, route]);
 
   useEffect(() => {
+    if (!filtersReady) {
+      return;
+    }
     void refresh();
-  }, [refresh]);
+  }, [filtersReady, refresh]);
 
   useEffect(() => {
     function onAnonymizeChange() {
@@ -94,7 +159,7 @@ export function useReportPageData<TRow>({
     reportTitle,
     reportDescription,
     rows,
-    loading,
+    loading: loading || !filtersReady,
     error,
     refresh,
     setRows,
