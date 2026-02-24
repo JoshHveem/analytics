@@ -375,6 +375,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const route = String(url.searchParams.get("route") ?? "").trim().replace(/^\/+|\/+$/g, "");
     const componentCode = String(url.searchParams.get("component_code") ?? "").trim() || undefined;
+    const reportComponentId = String(url.searchParams.get("report_component_id") ?? "").trim() || undefined;
     const includeMeta = parseBool(url.searchParams.get("include_meta"));
     const includeRows = parseBool(url.searchParams.get("include_rows"));
     const allColumns = parseBool(url.searchParams.get("all_columns"));
@@ -397,6 +398,7 @@ export async function GET(request: Request) {
           route,
           searchParams: normalizedSearch,
           componentCode,
+          reportComponentId,
           filterParams: reportFilters.map((f) => f.filterCode),
           selectMode: allColumns ? "all_available" : "spec",
         });

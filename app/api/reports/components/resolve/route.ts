@@ -11,12 +11,25 @@ export async function GET(request: Request) {
     }
 
     const payload = await withSecureReport(request, route, async ({ db }) => {
-      const { rows } = await db.query<{ component_code: string; report_component_id: string; report_id: string }>(
+      const { rows } = await db.query<{
+        component_code: string;
+        report_component_id: string;
+        report_id: string;
+        component_order: number;
+      }>(
         `
         SELECT
           rc.component_code,
           rc.id AS report_component_id,
-          r.id AS report_id
+          r.id AS report_id,
+          COALESCE(
+            CASE
+              WHEN (rc.settings->>'component_order') ~ '^-?\\d+$'
+              THEN (rc.settings->>'component_order')::int
+              ELSE NULL
+            END,
+            100000
+          ) AS component_order
         FROM meta.reports r
         INNER JOIN meta.report_components rc
           ON rc.report_id = r.id
@@ -27,16 +40,8 @@ export async function GET(request: Request) {
         WHERE COALESCE(r.is_active, true) = true
           AND (trim(both '/' from r.route) = $1 OR r.id = $1)
         ORDER BY
-          COALESCE(
-            CASE
-              WHEN (rc.settings->>'component_order') ~ '^-?\\d+$'
-              THEN (rc.settings->>'component_order')::int
-              ELSE NULL
-            END,
-            100000
-          ) ASC,
+          component_order ASC,
           rc.id ASC
-        LIMIT 1
         `,
         [route]
       );
@@ -48,9 +53,15 @@ export async function GET(request: Request) {
 
       return {
         ok: true,
-        component_code: String(row.component_code),
-        report_component_id: String(row.report_component_id),
-        report_id: String(row.report_id),
+        component_code: String(row.component_code ?? ""),
+        report_component_id: String(row.report_component_id ?? ""),
+        report_id: String(row.report_id ?? ""),
+        components: rows.map((componentRow) => ({
+          component_code: String(componentRow.component_code ?? ""),
+          report_component_id: String(componentRow.report_component_id ?? ""),
+          report_id: String(componentRow.report_id ?? ""),
+          component_order: Number(componentRow.component_order ?? 100000),
+        })),
       };
     });
 

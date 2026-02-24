@@ -31,6 +31,16 @@ export function CenteredModal({
   const descriptionId = `${resolvedDialogId}-description`;
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  const restoreFocusToRef = useRef<HTMLElement | null>(restoreFocusTo);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    restoreFocusToRef.current = restoreFocusTo;
+  }, [restoreFocusTo]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -39,7 +49,7 @@ export function CenteredModal({
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -82,9 +92,9 @@ export function CenteredModal({
       document.body.style.overflow = previousOverflow;
       document.body.style.paddingRight = previousPaddingRight;
       window.removeEventListener("keydown", onKeyDown);
-      restoreFocusTo?.focus();
+      restoreFocusToRef.current?.focus();
     };
-  }, [isOpen, onClose, restoreFocusTo]);
+  }, [isOpen]);
 
   if (!isOpen) {
     return null;

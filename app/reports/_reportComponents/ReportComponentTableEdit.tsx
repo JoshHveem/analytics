@@ -829,10 +829,6 @@ export default function ReportComponentTableEdit(args: {
       {error && <ReportErrorBanner className="mt-4" message={error} />}
 
       <ReportContainer className="mt-5">
-        <div className="mb-3 text-sm" style={{ color: "var(--app-text-muted)" }}>
-          Report ID: {reportId || "-"} | Report Component ID: {reportComponentId || "-"} | Component: {componentCode}
-        </div>
-
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm" style={{ color: "var(--app-text-muted)" }}>
             Drag headers left/right to reorder columns. Columns are managed in the sidebar "Columns" tab. Click "Edit" on a header to configure that column.
@@ -927,7 +923,8 @@ export default function ReportComponentTableEdit(args: {
                         activeColumn.draft.display === "number" || activeColumn.draft.display === "percentage"
                           ? activeColumn.draft.display
                           : "percentage";
-                    }
+                    }
+
                     updateDraft(activeColumn.key, nextUpdate);
                   }}
                   className="rounded border px-2 py-1"
@@ -939,7 +936,8 @@ export default function ReportComponentTableEdit(args: {
                 >
                   <option value="">Default</option>
                   <option value="threshold">Threshold</option>
-                  <option value="percentage_of_total_bar">Percentage Of Total Bar</option>
+                  <option value="percentage_of_total_bar">Percentage Of Total Bar</option>
+
                   <option value="number">Number</option>
                   <option value="percent">Percent</option>
                   <option value="text">Text</option>
@@ -1000,7 +998,8 @@ export default function ReportComponentTableEdit(args: {
                     }}
                   />
                 </div>
-              )}
+              )}
+
 
               {activeColumn.draft.type === "pill" && (
                 <div className="space-y-3">

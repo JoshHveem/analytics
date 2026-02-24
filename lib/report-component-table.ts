@@ -432,12 +432,14 @@ async function getAllowedJoinKeys(db: Queryable): Promise<Set<string>> {
 async function resolveTableComponentForRoute(
   db: Queryable,
   route: string,
-  componentCode?: string
+  componentCode?: string,
+  reportComponentId?: string
 ): Promise<TableComponentConfig> {
   const normalizedComponentCode = String(componentCode ?? "").trim();
   if (normalizedComponentCode && !SAFE_COMPONENT_CODE.test(normalizedComponentCode)) {
     throw new Error(`Invalid component_code: ${componentCode}`);
   }
+  const normalizedReportComponentId = String(reportComponentId ?? "").trim();
 
   const defaultSettingsColumn = await getComponentDefaultsColumn(db);
   const { rows } = await db.query<{
@@ -470,6 +472,7 @@ async function resolveTableComponentForRoute(
     WHERE (trim(both '/' from r.route) = $1 OR r.id = $1)
       AND COALESCE(r.is_active, true) = true
       AND ($2::text IS NULL OR rc.component_code = $2::text)
+      AND ($3::text IS NULL OR rc.id = $3::text)
     ORDER BY
       COALESCE(
         CASE
@@ -482,15 +485,23 @@ async function resolveTableComponentForRoute(
       rc.id ASC
     LIMIT 1
     `,
-    [route, normalizedComponentCode || null]
+    [route, normalizedComponentCode || null, normalizedReportComponentId || null]
   );
 
   const component = rows[0];
   if (!component) {
-    const where = normalizedComponentCode
-      ? ` and component_code "${normalizedComponentCode}"`
-      : "";
-    throw new Error(`No active component is configured for report route "${route}"${where}`);
+    const filters: string[] = [];
+    if (normalizedComponentCode) {
+      filters.push(`component_code "${normalizedComponentCode}"`);
+    }
+    if (normalizedReportComponentId) {
+      filters.push(`report_component_id "${normalizedReportComponentId}"`);
+    }
+    throw new Error(
+      `No active component is configured for report route "${route}"${
+        filters.length > 0 ? ` with ${filters.join(" and ")}` : ""
+      }`
+    );
   }
   const defaultSettings = parseJsonObject(
     component.component_default_settings,
@@ -521,11 +532,20 @@ export async function buildTableComponentQuery(args: {
   route: string;
   searchParams: URLSearchParams;
   componentCode?: string;
+  reportComponentId?: string;
   filterParams?: string[];
   selectMode?: "spec" | "all_available";
 }): Promise<CompiledComponentQuery> {
-  const { db, route, searchParams, componentCode, filterParams = [], selectMode = "spec" } = args;
-  const component = await resolveTableComponentForRoute(db, route, componentCode);
+  const {
+    db,
+    route,
+    searchParams,
+    componentCode,
+    reportComponentId,
+    filterParams = [],
+    selectMode = "spec",
+  } = args;
+  const component = await resolveTableComponentForRoute(db, route, componentCode, reportComponentId);
   const allowedJoinKeys = await getAllowedJoinKeys(db);
   const defaultSourceSchema = resolveSourceSchema(
     component.resolved_settings,

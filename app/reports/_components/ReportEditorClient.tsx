@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ReportContainer } from "./ReportContainer";
 import { ReportErrorBanner } from "./ReportErrorBanner";
@@ -37,6 +37,12 @@ type EditorResponse = {
   error?: string;
 };
 
+type DatasetTablesResponse = {
+  ok: boolean;
+  tables?: string[];
+  error?: string;
+};
+
 function toTitleCase(raw: string): string {
   return raw
     .replace(/_/g, " ")
@@ -56,13 +62,10 @@ export default function ReportEditorClient({ reportId }: { reportId: string }) {
   const [savingTitle, setSavingTitle] = useState(false);
   const [components, setComponents] = useState<EditorComponent[]>([]);
   const [availableComponents, setAvailableComponents] = useState<AvailableComponent[]>([]);
-  const [newComponentCode, setNewComponentCode] = useState<string>("table");
-  const [newBaseDatasetKey, setNewBaseDatasetKey] = useState<string>("");
-  const [newSourceSchema, setNewSourceSchema] = useState<string>("dataset");
-
-  const availableByCode = useMemo(() => {
-    return new Map(availableComponents.map((item) => [item.component_code, item] as const));
-  }, [availableComponents]);
+  const [newComponentCode, setNewComponentCode] = useState<string>("");
+  const [datasetTables, setDatasetTables] = useState<string[]>([]);
+  const [selectedDatasetTable, setSelectedDatasetTable] = useState<string>("");
+  const [loadingDatasetTables, setLoadingDatasetTables] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -94,14 +97,9 @@ export default function ReportEditorClient({ reportId }: { reportId: string }) {
       setReportTitleDraft(nextTitle);
       setComponents(sortedComponents);
       setAvailableComponents(json.available_components ?? []);
-      if ((json.available_components ?? []).length > 0) {
-        const defaultCode = json.available_components![0].component_code;
-        setNewComponentCode((current) =>
-          json.available_components!.some((item) => item.component_code === current)
-            ? current
-            : defaultCode
-        );
-      }
+      setNewComponentCode((current) =>
+        (json.available_components ?? []).some((item) => item.component_code === current) ? current : ""
+      );
     } catch (e: unknown) {
       setError(String(e));
     } finally {
@@ -112,6 +110,37 @@ export default function ReportEditorClient({ reportId }: { reportId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const loadDatasetTables = useCallback(async () => {
+    setLoadingDatasetTables(true);
+    try {
+      const res = await fetch("/api/reports/editor/dataset-tables", {
+        cache: "no-store",
+      });
+      const json = (await res.json()) as DatasetTablesResponse;
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || "Failed to load dataset tables");
+      }
+
+      const nextTables = Array.from(
+        new Set(
+          (json.tables ?? [])
+            .map((table) => String(table ?? "").trim())
+            .filter((table) => table.length > 0)
+        )
+      );
+      setDatasetTables(nextTables);
+      setSelectedDatasetTable((current) => (nextTables.includes(current) ? current : ""));
+    } catch (e: unknown) {
+      setError((current) => current ?? String(e));
+    } finally {
+      setLoadingDatasetTables(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadDatasetTables();
+  }, [loadDatasetTables]);
 
   const reportTitleDirty = reportTitleDraft.trim() !== reportTitle.trim();
 
@@ -248,6 +277,16 @@ export default function ReportEditorClient({ reportId }: { reportId: string }) {
   }
 
   async function createComponent() {
+    if (newComponentCode.trim().length === 0) {
+      setError("Component type is required.");
+      return;
+    }
+    const requiresDatasetTable = newComponentCode === "table" || newComponentCode === "conditional_bar";
+    if (requiresDatasetTable && selectedDatasetTable.trim().length === 0) {
+      setError("Dataset table is required for this component type.");
+      return;
+    }
+
     setCreating(true);
     setError(null);
     setMessage(null);
@@ -257,11 +296,8 @@ export default function ReportEditorClient({ reportId }: { reportId: string }) {
         report_id: resolvedReportId,
         component_code: newComponentCode,
       };
-      if ((newComponentCode === "table" || newComponentCode === "conditional_bar") && newBaseDatasetKey.trim().length > 0) {
-        body.base_dataset_key = newBaseDatasetKey.trim();
-      }
-      if ((newComponentCode === "table" || newComponentCode === "conditional_bar") && newSourceSchema.trim().length > 0) {
-        body.source_schema = newSourceSchema.trim();
+      if (requiresDatasetTable && selectedDatasetTable.trim().length > 0) {
+        body.base_dataset_key = selectedDatasetTable.trim();
       }
 
       const res = await fetch("/api/reports/editor/components", {
@@ -277,7 +313,6 @@ export default function ReportEditorClient({ reportId }: { reportId: string }) {
       }
 
       setMessage("Component created.");
-      setNewBaseDatasetKey("");
       await load();
     } catch (e: unknown) {
       setError(String(e));
@@ -285,6 +320,8 @@ export default function ReportEditorClient({ reportId }: { reportId: string }) {
       setCreating(false);
     }
   }
+
+  const requiresDatasetTable = newComponentCode === "table" || newComponentCode === "conditional_bar";
 
   return (
     <div className="mx-auto w-full max-w-6xl">
@@ -405,76 +442,64 @@ export default function ReportEditorClient({ reportId }: { reportId: string }) {
 
         <div className="rounded border p-3" style={{ borderColor: "var(--app-border)" }}>
           <div className="mb-2 text-sm font-semibold">Create Component</div>
-          <div className="grid grid-cols-1 gap-3">
-            <label className="text-sm">
-              <div className="mb-1">Component Type</div>
-              <select
-                value={newComponentCode}
-                onChange={(event) => setNewComponentCode(event.target.value)}
-                className="w-full rounded border px-2 py-1"
-                style={{
-                  borderColor: "var(--app-border)",
-                  backgroundColor: "var(--app-surface)",
-                  color: "var(--app-text-strong)",
-                }}
-              >
-                {availableComponents.map((component) => (
-                  <option key={component.component_code} value={component.component_code}>
-                    {component.name ?? toTitleCase(component.component_code)}
+          <div className="flex flex-nowrap items-center gap-2">
+            <select
+              value={newComponentCode}
+              onChange={(event) => setNewComponentCode(event.target.value)}
+              aria-label="Select component type"
+              className="min-w-0 flex-1 rounded border px-2 py-1 text-sm"
+              style={{
+                borderColor: "var(--app-border)",
+                backgroundColor: "var(--app-surface)",
+                color: "var(--app-text-strong)",
+              }}
+            >
+              <option value="">Select Component Type</option>
+              {availableComponents.map((component) => (
+                <option key={component.component_code} value={component.component_code}>
+                  {component.name ?? toTitleCase(component.component_code)}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedDatasetTable}
+              onChange={(event) => setSelectedDatasetTable(event.target.value)}
+              aria-label="Select dataset table"
+              disabled={loadingDatasetTables || datasetTables.length === 0}
+              className="min-w-0 flex-1 rounded border px-2 py-1 text-sm"
+              style={{
+                borderColor: "var(--app-border)",
+                backgroundColor: "var(--app-surface)",
+                color: "var(--app-text-strong)",
+              }}
+            >
+              <option value="">
+                {loadingDatasetTables ? "Loading datasets..." : "Select Dataset"}
+              </option>
+              {!loadingDatasetTables &&
+                datasetTables.map((tableName) => (
+                  <option key={tableName} value={tableName}>
+                    {`dataset.${tableName}`}
                   </option>
                 ))}
-              </select>
-              {availableByCode.get(newComponentCode)?.description && (
-                <div className="mt-1 text-xs" style={{ color: "var(--app-text-muted)" }}>
-                  {availableByCode.get(newComponentCode)?.description}
-                </div>
-              )}
-            </label>
+            </select>
 
-            {(newComponentCode === "table" || newComponentCode === "conditional_bar") && (
-              <>
-                <label className="text-sm">
-                  <div className="mb-1">Base Dataset Key (optional if component template already has a valid spec)</div>
-                  <input
-                    value={newBaseDatasetKey}
-                    onChange={(event) => setNewBaseDatasetKey(event.target.value)}
-                    placeholder="e.g. instructor_metrics"
-                    className="w-full rounded border px-2 py-1"
-                    style={{
-                      borderColor: "var(--app-border)",
-                      backgroundColor: "var(--app-surface)",
-                      color: "var(--app-text-strong)",
-                    }}
-                  />
-                </label>
-                <label className="text-sm">
-                  <div className="mb-1">Source Schema (optional)</div>
-                  <input
-                    value={newSourceSchema}
-                    onChange={(event) => setNewSourceSchema(event.target.value)}
-                    placeholder="dataset"
-                    className="w-full rounded border px-2 py-1"
-                    style={{
-                      borderColor: "var(--app-border)",
-                      backgroundColor: "var(--app-surface)",
-                      color: "var(--app-text-strong)",
-                    }}
-                  />
-                </label>
-              </>
-            )}
-
-            <div>
-              <button
-                type="button"
-                onClick={() => void createComponent()}
-                disabled={creating || availableComponents.length === 0}
-                className="rounded border px-3 py-1 text-sm"
-                style={{ borderColor: "var(--app-border)", color: "var(--app-text-strong)" }}
-              >
-                {creating ? "Creating..." : "Add Component"}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => void createComponent()}
+              aria-label="Add component"
+              disabled={
+                creating ||
+                availableComponents.length === 0 ||
+                newComponentCode.trim().length === 0 ||
+                (requiresDatasetTable && selectedDatasetTable.trim().length === 0)
+              }
+              className="rounded border px-3 py-1 text-sm leading-none"
+              style={{ borderColor: "var(--app-border)", color: "var(--app-text-strong)" }}
+            >
+              {creating ? "..." : "+"}
+            </button>
           </div>
         </div>
       </ReportContainer>

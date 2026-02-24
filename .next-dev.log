@@ -1095,3 +1095,656 @@ https://nextjs.org/docs/messages/module-not-found
  GET /api/reports/components/table?route=course-readiness&include_meta=1&include_rows=1&anonymize=0&all_columns=1&academic_year=2025&program_code=ATTE 200 in 719ms (compile: 3ms, render: 716ms)
  PUT /api/reports/components/table-config?report_id=7199894f-31dd-4027-9afd-91b4085d521c&report_component_id=a0fbcb53-aa3e-4730-904f-5e1feaf38675 200 in 538ms (compile: 4ms, render: 534ms)
  GET /api/reports/components/table-config?report_id=7199894f-31dd-4027-9afd-91b4085d521c&report_component_id=a0fbcb53-aa3e-4730-904f-5e1feaf38675 200 in 427ms (compile: 3ms, render: 424ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 588ms (compile: 123ms, render: 465ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 782ms (compile: 117ms, render: 666ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 404ms (compile: 5ms, render: 399ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 532ms (compile: 5ms, render: 528ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 573ms (compile: 7ms, render: 566ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 533ms (compile: 5ms, render: 529ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 360ms (compile: 17ms, render: 343ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 426ms (compile: 58ms, render: 369ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 342ms (compile: 7ms, render: 335ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 310ms (compile: 4ms, render: 306ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 394ms (compile: 35ms, render: 359ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 417ms (compile: 36ms, render: 381ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 332ms (compile: 4ms, render: 328ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 327ms (compile: 14ms, render: 313ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 333ms (compile: 15ms, render: 318ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 278ms (compile: 30ms, render: 248ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 281ms (compile: 4ms, render: 277ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 335ms (compile: 3ms, render: 331ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 340ms (compile: 4ms, render: 336ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 316ms (compile: 4ms, render: 312ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 341ms (compile: 54ms, render: 287ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 258ms (compile: 4ms, render: 255ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 342ms (compile: 24ms, render: 319ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 317ms (compile: 15ms, render: 302ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 316ms (compile: 3ms, render: 313ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 413ms (compile: 3ms, render: 410ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 520ms (compile: 4ms, render: 516ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 563ms (compile: 9ms, render: 554ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 565ms (compile: 16ms, render: 549ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 542ms (compile: 4ms, render: 538ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 533ms (compile: 4ms, render: 529ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 466ms (compile: 112ms, render: 354ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 313ms (compile: 26ms, render: 287ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 280ms (compile: 3ms, render: 277ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 291ms (compile: 3ms, render: 288ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 293ms (compile: 3ms, render: 289ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 292ms (compile: 3ms, render: 289ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 299ms (compile: 3ms, render: 296ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 298ms (compile: 4ms, render: 294ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 298ms (compile: 14ms, render: 283ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 285ms (compile: 4ms, render: 281ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 283ms (compile: 3ms, render: 280ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 291ms (compile: 15ms, render: 276ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 279ms (compile: 3ms, render: 276ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 324ms (compile: 3ms, render: 321ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 369ms (compile: 3ms, render: 366ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 389ms (compile: 3ms, render: 385ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 350ms (compile: 3ms, render: 346ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 381ms (compile: 4ms, render: 378ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 366ms (compile: 24ms, render: 343ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 327ms (compile: 25ms, render: 302ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 311ms (compile: 4ms, render: 307ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 267ms (compile: 4ms, render: 263ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 331ms (compile: 5ms, render: 326ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 336ms (compile: 5ms, render: 331ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 337ms (compile: 4ms, render: 332ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 338ms (compile: 4ms, render: 335ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 358ms (compile: 24ms, render: 334ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 358ms (compile: 56ms, render: 302ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 330ms (compile: 3ms, render: 327ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 344ms (compile: 3ms, render: 340ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 297ms (compile: 3ms, render: 293ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 341ms (compile: 5ms, render: 336ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 310ms (compile: 4ms, render: 307ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 295ms (compile: 16ms, render: 279ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 337ms (compile: 8ms, render: 330ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 303ms (compile: 15ms, render: 288ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 345ms (compile: 43ms, render: 302ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 314ms (compile: 3ms, render: 311ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 330ms (compile: 3ms, render: 327ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 278ms (compile: 4ms, render: 274ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 351ms (compile: 30ms, render: 322ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 332ms (compile: 4ms, render: 328ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 338ms (compile: 14ms, render: 324ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 332ms (compile: 14ms, render: 318ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 323ms (compile: 6ms, render: 317ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 319ms (compile: 4ms, render: 315ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 392ms (compile: 36ms, render: 356ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 371ms (compile: 4ms, render: 367ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 374ms (compile: 3ms, render: 370ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 379ms (compile: 3ms, render: 376ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 366ms (compile: 14ms, render: 352ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 338ms (compile: 23ms, render: 315ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 408ms (compile: 49ms, render: 358ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 314ms (compile: 6ms, render: 308ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 363ms (compile: 4ms, render: 360ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 296ms (compile: 4ms, render: 292ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 335ms (compile: 4ms, render: 331ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 325ms (compile: 4ms, render: 320ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 346ms (compile: 18ms, render: 328ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 309ms (compile: 21ms, render: 288ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 248ms (compile: 4ms, render: 244ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 365ms (compile: 28ms, render: 337ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 322ms (compile: 3ms, render: 319ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 325ms (compile: 4ms, render: 321ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 296ms (compile: 4ms, render: 291ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 306ms (compile: 4ms, render: 302ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 315ms (compile: 15ms, render: 300ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 306ms (compile: 16ms, render: 291ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 297ms (compile: 4ms, render: 294ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 314ms (compile: 3ms, render: 310ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 327ms (compile: 4ms, render: 323ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 321ms (compile: 4ms, render: 318ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 329ms (compile: 4ms, render: 325ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 321ms (compile: 4ms, render: 317ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 335ms (compile: 17ms, render: 319ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 346ms (compile: 19ms, render: 328ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 314ms (compile: 4ms, render: 310ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 326ms (compile: 4ms, render: 323ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 321ms (compile: 4ms, render: 317ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 398ms (compile: 3ms, render: 395ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 342ms (compile: 6ms, render: 336ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 321ms (compile: 4ms, render: 317ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 330ms (compile: 18ms, render: 312ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 327ms (compile: 15ms, render: 312ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 343ms (compile: 5ms, render: 338ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 305ms (compile: 3ms, render: 301ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 344ms (compile: 4ms, render: 340ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 313ms (compile: 4ms, render: 309ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 413ms (compile: 5ms, render: 408ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 351ms (compile: 4ms, render: 347ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 340ms (compile: 21ms, render: 319ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 248ms (compile: 4ms, render: 244ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 402ms (compile: 54ms, render: 348ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 299ms (compile: 4ms, render: 295ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 343ms (compile: 4ms, render: 339ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 346ms (compile: 4ms, render: 342ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 344ms (compile: 4ms, render: 340ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 395ms (compile: 26ms, render: 369ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 336ms (compile: 16ms, render: 320ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 351ms (compile: 15ms, render: 336ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 397ms (compile: 41ms, render: 356ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 316ms (compile: 5ms, render: 312ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 468ms (compile: 5ms, render: 463ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 458ms (compile: 38ms, render: 420ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 459ms (compile: 5ms, render: 454ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 431ms (compile: 16ms, render: 415ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 482ms (compile: 4ms, render: 478ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 509ms (compile: 44ms, render: 466ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 295ms (compile: 19ms, render: 276ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 340ms (compile: 4ms, render: 336ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 371ms (compile: 53ms, render: 318ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 338ms (compile: 3ms, render: 335ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 263ms (compile: 3ms, render: 260ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 399ms (compile: 19ms, render: 381ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 272ms (compile: 4ms, render: 268ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 373ms (compile: 33ms, render: 340ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 302ms (compile: 3ms, render: 299ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 326ms (compile: 16ms, render: 310ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 324ms (compile: 9ms, render: 316ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 318ms (compile: 4ms, render: 313ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 324ms (compile: 16ms, render: 309ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 308ms (compile: 5ms, render: 303ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 332ms (compile: 4ms, render: 328ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 351ms (compile: 4ms, render: 347ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 354ms (compile: 4ms, render: 350ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 311ms (compile: 4ms, render: 307ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 326ms (compile: 16ms, render: 310ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 367ms (compile: 5ms, render: 362ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 340ms (compile: 16ms, render: 324ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 344ms (compile: 4ms, render: 340ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 357ms (compile: 4ms, render: 354ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 357ms (compile: 31ms, render: 327ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 361ms (compile: 8ms, render: 352ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 411ms (compile: 35ms, render: 376ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 374ms (compile: 3ms, render: 370ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 340ms (compile: 17ms, render: 324ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 332ms (compile: 16ms, render: 316ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 370ms (compile: 45ms, render: 324ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 325ms (compile: 5ms, render: 321ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 334ms (compile: 4ms, render: 330ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 344ms (compile: 4ms, render: 341ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 347ms (compile: 5ms, render: 342ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 339ms (compile: 3ms, render: 336ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 338ms (compile: 15ms, render: 322ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 324ms (compile: 16ms, render: 309ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 309ms (compile: 3ms, render: 306ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 317ms (compile: 4ms, render: 313ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 354ms (compile: 4ms, render: 351ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 353ms (compile: 4ms, render: 350ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 358ms (compile: 4ms, render: 354ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 366ms (compile: 4ms, render: 362ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 366ms (compile: 16ms, render: 350ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 354ms (compile: 16ms, render: 338ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 314ms (compile: 4ms, render: 310ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 331ms (compile: 4ms, render: 327ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 336ms (compile: 3ms, render: 333ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 336ms (compile: 4ms, render: 332ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 335ms (compile: 4ms, render: 331ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 333ms (compile: 4ms, render: 329ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 328ms (compile: 18ms, render: 311ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 311ms (compile: 15ms, render: 297ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 301ms (compile: 5ms, render: 296ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 296ms (compile: 4ms, render: 292ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 289ms (compile: 4ms, render: 285ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 295ms (compile: 4ms, render: 292ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 288ms (compile: 3ms, render: 285ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 328ms (compile: 4ms, render: 324ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 317ms (compile: 3ms, render: 314ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 316ms (compile: 3ms, render: 313ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 319ms (compile: 15ms, render: 304ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 268ms (compile: 15ms, render: 254ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 268ms (compile: 5ms, render: 263ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 286ms (compile: 4ms, render: 282ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 297ms (compile: 4ms, render: 293ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 300ms (compile: 3ms, render: 296ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 295ms (compile: 3ms, render: 292ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 312ms (compile: 7ms, render: 305ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 308ms (compile: 14ms, render: 293ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 302ms (compile: 14ms, render: 287ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 295ms (compile: 8ms, render: 288ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 298ms (compile: 3ms, render: 295ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 337ms (compile: 3ms, render: 333ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 354ms (compile: 3ms, render: 350ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 315ms (compile: 3ms, render: 311ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 357ms (compile: 6ms, render: 351ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 362ms (compile: 3ms, render: 358ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 337ms (compile: 15ms, render: 322ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 381ms (compile: 51ms, render: 330ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 325ms (compile: 4ms, render: 321ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 320ms (compile: 4ms, render: 316ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 384ms (compile: 35ms, render: 349ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 299ms (compile: 5ms, render: 294ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 312ms (compile: 3ms, render: 309ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 358ms (compile: 4ms, render: 354ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 373ms (compile: 4ms, render: 368ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 335ms (compile: 20ms, render: 315ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 334ms (compile: 17ms, render: 317ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 372ms (compile: 45ms, render: 327ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 346ms (compile: 7ms, render: 339ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 370ms (compile: 10ms, render: 360ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 336ms (compile: 4ms, render: 332ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 329ms (compile: 4ms, render: 325ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c 200 in 284ms (compile: 20ms, render: 264ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 351ms (compile: 4ms, render: 347ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 319ms (compile: 14ms, render: 305ms)
+ GET /api/reports/filter-meta?include_meta=1&include_rows=0&academic_year=2025&program_code=ATTE&report_id=7199894f-31dd-4027-9afd-91b4085d521c 200 in 450ms (compile: 50ms, render: 400ms)
+ GET /api/reports/filter-meta?include_meta=1&include_rows=0&report_id=7199894f-31dd-4027-9afd-91b4085d521c 200 in 413ms (compile: 3ms, render: 410ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/edit 200 in 701ms (compile: 124ms, render: 577ms)
+ GET /api/user-settings 200 in 287ms (compile: 61ms, render: 227ms)
+ GET /api/reports/config?route=2935706c-ca7b-4d20-abab-dee1b529c0f2 200 in 308ms (compile: 29ms, render: 279ms)
+ GET /api/reports/editor/components?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2 200 in 394ms (compile: 30ms, render: 364ms)
+ PUT /api/user-settings 200 in 193ms (compile: 3ms, render: 191ms)
+ GET /api/reports/filter-meta?include_meta=1&include_rows=0&report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2 200 in 196ms (compile: 2ms, render: 193ms)
+ POST /api/reports/editor/components 200 in 554ms (compile: 4ms, render: 549ms)
+ GET /api/reports/editor/components?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2 200 in 309ms (compile: 3ms, render: 306ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 207ms (compile: 23ms, render: 184ms)
+ GET /api/reports/filter-meta?include_meta=1&include_rows=0&report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2 200 in 266ms (compile: 9ms, render: 257ms)
+ GET /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 456ms (compile: 43ms, render: 413ms)
+ GET /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 516ms (compile: 39ms, render: 477ms)
+ GET /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 515ms (compile: 45ms, render: 469ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 669ms (compile: 38ms, render: 632ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 355ms (compile: 5ms, render: 350ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 625ms (compile: 5ms, render: 620ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 366ms (compile: 7ms, render: 358ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 734ms (compile: 3ms, render: 731ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 409ms (compile: 5ms, render: 404ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 633ms (compile: 2ms, render: 631ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 315ms (compile: 5ms, render: 310ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 573ms (compile: 5ms, render: 568ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 392ms (compile: 7ms, render: 385ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 615ms (compile: 5ms, render: 610ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 399ms (compile: 6ms, render: 393ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 585ms (compile: 2ms, render: 583ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 379ms (compile: 5ms, render: 374ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 628ms (compile: 5ms, render: 623ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 465ms (compile: 6ms, render: 459ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 560ms (compile: 4ms, render: 556ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 360ms (compile: 3ms, render: 357ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 552ms (compile: 5ms, render: 546ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 344ms (compile: 2ms, render: 342ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 695ms (compile: 3ms, render: 692ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 363ms (compile: 4ms, render: 359ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 617ms (compile: 4ms, render: 613ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 374ms (compile: 6ms, render: 368ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 610ms (compile: 3ms, render: 608ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 478ms (compile: 5ms, render: 473ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 584ms (compile: 4ms, render: 580ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 364ms (compile: 4ms, render: 360ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 647ms (compile: 2ms, render: 645ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 394ms (compile: 4ms, render: 391ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 551ms (compile: 3ms, render: 548ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 370ms (compile: 6ms, render: 365ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 622ms (compile: 2ms, render: 619ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 389ms (compile: 5ms, render: 384ms)
+ GET /api/reports/components/table?route=completions&include_meta=1&include_rows=1&anonymize=0&all_columns=1 200 in 643ms (compile: 4ms, render: 639ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 506ms (compile: 3ms, render: 502ms)
+ GET /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 357ms (compile: 6ms, render: 351ms)
+ PUT /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 500ms (compile: 3ms, render: 497ms)
+ GET /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 379ms (compile: 5ms, render: 374ms)
+✓ Compiled in 49ms
+✓ Compiled in 50ms
+ GET /api/reports/config?route=2935706c-ca7b-4d20-abab-dee1b529c0f2 200 in 332ms (compile: 3ms, render: 329ms)
+ GET /api/user-settings 200 in 323ms (compile: 8ms, render: 316ms)
+ GET /api/reports/config?route=7199894f-31dd-4027-9afd-91b4085d521c 200 in 380ms (compile: 3ms, render: 377ms)
+ GET /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 408ms (compile: 3ms, render: 404ms)
+ GET /api/reports/components/table-config?report_id=7199894f-31dd-4027-9afd-91b4085d521c&report_component_id=a0fbcb53-aa3e-4730-904f-5e1feaf38675 200 in 482ms (compile: 9ms, render: 473ms)
+ GET /api/user-settings 200 in 208ms (compile: 7ms, render: 201ms)
+ GET /api/reports/filter-meta?include_meta=1&include_rows=0&report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2 200 in 237ms (compile: 3ms, render: 234ms)
+ PUT /api/user-settings 200 in 179ms (compile: 3ms, render: 176ms)
+ GET /api/reports/filter-meta?include_meta=1&include_rows=0&academic_year=2025&program_code=ATTE&report_id=7199894f-31dd-4027-9afd-91b4085d521c 200 in 443ms (compile: 2ms, render: 441ms)
+ PUT /api/user-settings 200 in 247ms (compile: 4ms, render: 243ms)
+✓ Compiled in 44ms
+ GET /api/reports/config?route=2935706c-ca7b-4d20-abab-dee1b529c0f2 200 in 192ms (compile: 4ms, render: 188ms)
+ GET /api/user-settings 200 in 192ms (compile: 16ms, render: 175ms)
+ GET /api/reports/config?route=7199894f-31dd-4027-9afd-91b4085d521c 200 in 196ms (compile: 3ms, render: 193ms)
+ GET /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 541ms (compile: 11ms, render: 530ms)
+ GET /api/reports/components/table-config?report_id=7199894f-31dd-4027-9afd-91b4085d521c&report_component_id=a0fbcb53-aa3e-4730-904f-5e1feaf38675 200 in 581ms (compile: 7ms, render: 575ms)
+ GET /api/user-settings 200 in 454ms (compile: 2ms, render: 452ms)
+ GET /api/reports/filter-meta?include_meta=1&include_rows=0&report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2 200 in 510ms (compile: 12ms, render: 498ms)
+ GET /api/reports/editor/filters?report_id=7199894f-31dd-4027-9afd-91b4085d521c 404 in 335ms (compile: 12ms, render: 323ms)
+ PUT /api/user-settings 200 in 266ms (compile: 4ms, render: 262ms)
+ GET /api/reports/editor/filters?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2 404 in 749ms (compile: 164ms, render: 584ms)
+ GET /api/reports/filter-meta?include_meta=1&include_rows=0&academic_year=2025&program_code=ATTE&report_id=7199894f-31dd-4027-9afd-91b4085d521c 200 in 774ms (compile: 4ms, render: 770ms)
+ PUT /api/user-settings 200 in 249ms (compile: 2ms, render: 247ms)
+✓ Compiled in 60ms
+✓ Compiled in 60ms
+ GET /api/reports/config?route=2935706c-ca7b-4d20-abab-dee1b529c0f2 200 in 273ms (compile: 4ms, render: 269ms)
+ GET /api/user-settings 200 in 274ms (compile: 13ms, render: 261ms)
+ GET /api/reports/config?route=7199894f-31dd-4027-9afd-91b4085d521c 200 in 285ms (compile: 5ms, render: 279ms)
+ GET /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 200 in 542ms (compile: 8ms, render: 534ms)
+ GET /api/reports/components/table-config?report_id=7199894f-31dd-4027-9afd-91b4085d521c&report_component_id=a0fbcb53-aa3e-4730-904f-5e1feaf38675 200 in 603ms (compile: 8ms, render: 595ms)
+ GET /api/user-settings 200 in 367ms (compile: 4ms, render: 363ms)
+ GET /api/reports/filter-meta?include_meta=1&include_rows=0&report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2 200 in 406ms (compile: 12ms, render: 394ms)
+ GET /api/reports/editor/filters?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2 404 in 456ms (compile: 82ms, render: 374ms)
+ GET /api/reports/editor/filters?report_id=7199894f-31dd-4027-9afd-91b4085d521c 404 in 279ms (compile: 4ms, render: 275ms)
+ PUT /api/user-settings 200 in 209ms (compile: 4ms, render: 205ms)
+ GET /api/reports/filter-meta?include_meta=1&include_rows=0&academic_year=2025&program_code=ATTE&report_id=7199894f-31dd-4027-9afd-91b4085d521c 200 in 517ms (compile: 3ms, render: 515ms)
+ PUT /api/user-settings 200 in 188ms (compile: 1992µs, render: 186ms)
+✓ Compiled in 33ms
+✓ Compiled in 55ms
+✓ Compiled in 47ms
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 659ms (compile: 205ms, render: 454ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 662ms (compile: 118ms, render: 544ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 289ms (compile: 8ms, render: 281ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 504ms (compile: 4ms, render: 500ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 568ms (compile: 11ms, render: 558ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 518ms (compile: 4ms, render: 514ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 339ms (compile: 18ms, render: 322ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 297ms (compile: 7ms, render: 291ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 411ms (compile: 57ms, render: 355ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 423ms (compile: 36ms, render: 387ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 347ms (compile: 4ms, render: 342ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 308ms (compile: 4ms, render: 304ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 361ms (compile: 5ms, render: 356ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 348ms (compile: 23ms, render: 325ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 263ms (compile: 4ms, render: 259ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 358ms (compile: 6ms, render: 352ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 306ms (compile: 33ms, render: 273ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 328ms (compile: 4ms, render: 324ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 329ms (compile: 3ms, render: 326ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 323ms (compile: 4ms, render: 319ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 335ms (compile: 3ms, render: 331ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 358ms (compile: 15ms, render: 343ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 323ms (compile: 4ms, render: 319ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 373ms (compile: 9ms, render: 364ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 329ms (compile: 4ms, render: 325ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 386ms (compile: 6ms, render: 380ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 379ms (compile: 4ms, render: 375ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 352ms (compile: 5ms, render: 347ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 334ms (compile: 16ms, render: 317ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 382ms (compile: 46ms, render: 336ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 292ms (compile: 4ms, render: 288ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 347ms (compile: 33ms, render: 314ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 315ms (compile: 3ms, render: 312ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 319ms (compile: 4ms, render: 315ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 322ms (compile: 3ms, render: 318ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 321ms (compile: 3ms, render: 317ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 360ms (compile: 16ms, render: 344ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 300ms (compile: 4ms, render: 296ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 319ms (compile: 4ms, render: 314ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 337ms (compile: 4ms, render: 334ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 345ms (compile: 4ms, render: 341ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 349ms (compile: 4ms, render: 345ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 352ms (compile: 6ms, render: 345ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 374ms (compile: 5ms, render: 368ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 375ms (compile: 15ms, render: 360ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 312ms (compile: 4ms, render: 308ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 373ms (compile: 4ms, render: 369ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 321ms (compile: 4ms, render: 317ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 290ms (compile: 5ms, render: 285ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 402ms (compile: 5ms, render: 396ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 350ms (compile: 3ms, render: 346ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 371ms (compile: 30ms, render: 341ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 338ms (compile: 19ms, render: 319ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 342ms (compile: 57ms, render: 285ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 264ms (compile: 5ms, render: 259ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 299ms (compile: 9ms, render: 290ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 317ms (compile: 3ms, render: 314ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 336ms (compile: 4ms, render: 332ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 349ms (compile: 4ms, render: 345ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 371ms (compile: 4ms, render: 367ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 402ms (compile: 17ms, render: 384ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 336ms (compile: 4ms, render: 332ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 372ms (compile: 5ms, render: 367ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 386ms (compile: 3ms, render: 383ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 330ms (compile: 4ms, render: 325ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 387ms (compile: 4ms, render: 382ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 363ms (compile: 4ms, render: 359ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 372ms (compile: 16ms, render: 356ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 360ms (compile: 6ms, render: 355ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 297ms (compile: 4ms, render: 293ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 325ms (compile: 3ms, render: 322ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 382ms (compile: 21ms, render: 362ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 321ms (compile: 4ms, render: 317ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 329ms (compile: 4ms, render: 326ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 348ms (compile: 19ms, render: 329ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 334ms (compile: 7ms, render: 327ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 340ms (compile: 6ms, render: 333ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 364ms (compile: 3ms, render: 361ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 377ms (compile: 6ms, render: 371ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 335ms (compile: 5ms, render: 330ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 366ms (compile: 3ms, render: 363ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 327ms (compile: 4ms, render: 323ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 410ms (compile: 28ms, render: 382ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 341ms (compile: 4ms, render: 338ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 327ms (compile: 5ms, render: 323ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 357ms (compile: 8ms, render: 350ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 359ms (compile: 4ms, render: 355ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 316ms (compile: 5ms, render: 312ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 326ms (compile: 4ms, render: 322ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 385ms (compile: 31ms, render: 354ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 300ms (compile: 12ms, render: 288ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 321ms (compile: 4ms, render: 317ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 324ms (compile: 4ms, render: 320ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 356ms (compile: 9ms, render: 347ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 319ms (compile: 3ms, render: 316ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 347ms (compile: 4ms, render: 343ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 419ms (compile: 35ms, render: 384ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 334ms (compile: 4ms, render: 329ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 406ms (compile: 16ms, render: 390ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 401ms (compile: 4ms, render: 397ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 404ms (compile: 4ms, render: 400ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 387ms (compile: 7ms, render: 380ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 369ms (compile: 4ms, render: 365ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 369ms (compile: 42ms, render: 327ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 350ms (compile: 21ms, render: 329ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 297ms (compile: 4ms, render: 293ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 384ms (compile: 3ms, render: 381ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 372ms (compile: 3ms, render: 369ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 376ms (compile: 3ms, render: 372ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 437ms (compile: 28ms, render: 409ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 428ms (compile: 8ms, render: 421ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 293ms (compile: 5ms, render: 288ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 370ms (compile: 28ms, render: 342ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 267ms (compile: 6ms, render: 261ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 268ms (compile: 14ms, render: 255ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 226ms (compile: 4ms, render: 222ms)
+ GET /api/reports/filter-meta?include_meta=1&include_rows=0&report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2 200 in 269ms (compile: 52ms, render: 218ms)
+ GET /api/reports/filter-meta?include_meta=1&include_rows=0&academic_year=2025&program_code=ATTE&report_id=7199894f-31dd-4027-9afd-91b4085d521c 200 in 415ms (compile: 3ms, render: 412ms)
+✓ Compiled in 35ms
+✓ Compiled in 322ms
+User settings GET error: AggregateError: 
+    at async requireAuth (lib\auth.ts:79:20)
+    at async withAuthedDb (lib\authed-db.ts:8:16)
+    at async GET (app\api\user-settings\route.ts:24:21)
+  77 |   }
+  78 |
+> 79 |   const { rows } = await pool.query(
+     |                    ^
+  80 |     `
+  81 |     SELECT sis_user_id, email, display_name, is_active, is_admin
+  82 |     FROM auth."user" {
+  code: 'ECONNREFUSED'
+}
+ GET /api/user-settings 500 in 467ms (compile: 212ms, render: 255ms)
+Report config error: AggregateError: 
+    at async requireAuth (lib\auth.ts:79:20)
+    at async withAuthedDb (lib\authed-db.ts:8:16)
+    at async GET (app\api\reports\config\route.ts:14:20)
+  77 |   }
+  78 |
+> 79 |   const { rows } = await pool.query(
+     |                    ^
+  80 |     `
+  81 |     SELECT sis_user_id, email, display_name, is_active, is_admin
+  82 |     FROM auth."user" {
+  code: 'ECONNREFUSED'
+}
+ GET /api/reports/config?route=2935706c-ca7b-4d20-abab-dee1b529c0f2 500 in 548ms (compile: 277ms, render: 271ms)
+Table config GET error: AggregateError: 
+    at async requireAuth (lib\auth.ts:79:20)
+    at async withAuthedDb (lib\authed-db.ts:8:16)
+    at async GET (app\api\reports\components\table-config\route.ts:692:21)
+  77 |   }
+  78 |
+> 79 |   const { rows } = await pool.query(
+     |                    ^
+  80 |     `
+  81 |     SELECT sis_user_id, email, display_name, is_active, is_admin
+  82 |     FROM auth."user" {
+  code: 'ECONNREFUSED'
+}
+ GET /api/reports/components/table-config?report_id=2935706c-ca7b-4d20-abab-dee1b529c0f2&report_component_id=48a900bd-886a-4a19-8b79-be5804c87b55 500 in 626ms (compile: 338ms, render: 288ms)
+⨯ AggregateError: 
+    at async requireAuth (lib\auth.ts:79:20)
+    at async withAuthedDb (lib\authed-db.ts:8:16)
+    at async getActiveReportCategories (lib\report-catalog.ts:69:19)
+    at async Sidebar (app\dashboard\Sidebar.tsx:5:22)
+  77 |   }
+  78 |
+> 79 |   const { rows } = await pool.query(
+     |                    ^
+  80 |     `
+  81 |     SELECT sis_user_id, email, display_name, is_active, is_admin
+  82 |     FROM auth."user" {
+  code: 'ECONNREFUSED',
+  digest: '1944525954'
+}
+⨯ AggregateError: 
+    at async requireAuth (lib\auth.ts:79:20)
+    at async ReportComponentEditPage (app\reports\[route]\components\[reportComponentId]\edit\page.tsx:11:16)
+  77 |   }
+  78 |
+> 79 |   const { rows } = await pool.query(
+     |                    ^
+  80 |     `
+  81 |     SELECT sis_user_id, email, display_name, is_active, is_admin
+  82 |     FROM auth."user" {
+  code: 'ECONNREFUSED',
+  digest: '675906975'
+}
+⨯ AggregateError: 
+    at async requireAuth (lib\auth.ts:79:20)
+    at async withAuthedDb (lib\authed-db.ts:8:16)
+    at async getActiveReportCategories (lib\report-catalog.ts:69:19)
+    at async Sidebar (app\dashboard\Sidebar.tsx:5:22)
+  77 |   }
+  78 |
+> 79 |   const { rows } = await pool.query(
+     |                    ^
+  80 |     `
+  81 |     SELECT sis_user_id, email, display_name, is_active, is_admin
+  82 |     FROM auth."user" {
+  code: 'ECONNREFUSED',
+  digest: '1944525954'
+}
+⨯ AggregateError: 
+    at async requireAuth (lib\auth.ts:79:20)
+    at async ReportComponentEditPage (app\reports\[route]\components\[reportComponentId]\edit\page.tsx:11:16)
+  77 |   }
+  78 |
+> 79 |   const { rows } = await pool.query(
+     |                    ^
+  80 |     `
+  81 |     SELECT sis_user_id, email, display_name, is_active, is_admin
+  82 |     FROM auth."user" {
+  code: 'ECONNREFUSED',
+  digest: '675906975'
+}
+Report config error: AggregateError: 
+    at async requireAuth (lib\auth.ts:79:20)
+    at async withAuthedDb (lib\authed-db.ts:8:16)
+    at async GET (app\api\reports\config\route.ts:14:20)
+  77 |   }
+  78 |
+> 79 |   const { rows } = await pool.query(
+     |                    ^
+  80 |     `
+  81 |     SELECT sis_user_id, email, display_name, is_active, is_admin
+  82 |     FROM auth."user" {
+  code: 'ECONNREFUSED'
+}
+ GET /api/reports/config?route=7199894f-31dd-4027-9afd-91b4085d521c 500 in 168ms (compile: 23ms, render: 145ms)
+⨯ AggregateError: 
+    at async requireAuth (lib\auth.ts:79:20)
+    at async withAuthedDb (lib\authed-db.ts:8:16)
+    at async getActiveReportCategories (lib\report-catalog.ts:69:19)
+    at async Sidebar (app\dashboard\Sidebar.tsx:5:22)
+  77 |   }
+  78 |
+> 79 |   const { rows } = await pool.query(
+     |                    ^
+  80 |     `
+  81 |     SELECT sis_user_id, email, display_name, is_active, is_admin
+  82 |     FROM auth."user" {
+  code: 'ECONNREFUSED',
+  digest: '1944525954'
+}
+⨯ AggregateError: 
+    at async requireAuth (lib\auth.ts:79:20)
+    at async ReportComponentEditPage (app\reports\[route]\components\[reportComponentId]\edit\page.tsx:11:16)
+  77 |   }
+  78 |
+> 79 |   const { rows } = await pool.query(
+     |                    ^
+  80 |     `
+  81 |     SELECT sis_user_id, email, display_name, is_active, is_admin
+  82 |     FROM auth."user" {
+  code: 'ECONNREFUSED',
+  digest: '675906975'
+}
+⨯ AggregateError: 
+    at async requireAuth (lib\auth.ts:79:20)
+    at async withAuthedDb (lib\authed-db.ts:8:16)
+    at async getActiveReportCategories (lib\report-catalog.ts:69:19)
+    at async Sidebar (app\dashboard\Sidebar.tsx:5:22)
+  77 |   }
+  78 |
+> 79 |   const { rows } = await pool.query(
+     |                    ^
+  80 |     `
+  81 |     SELECT sis_user_id, email, display_name, is_active, is_admin
+  82 |     FROM auth."user" {
+  code: 'ECONNREFUSED',
+  digest: '1944525954'
+}
+⨯ AggregateError: 
+    at async requireAuth (lib\auth.ts:79:20)
+    at async ReportComponentEditPage (app\reports\[route]\components\[reportComponentId]\edit\page.tsx:11:16)
+  77 |   }
+  78 |
+> 79 |   const { rows } = await pool.query(
+     |                    ^
+  80 |     `
+  81 |     SELECT sis_user_id, email, display_name, is_active, is_admin
+  82 |     FROM auth."user" {
+  code: 'ECONNREFUSED',
+  digest: '675906975'
+}
+Table config GET error: AggregateError: 
+    at async requireAuth (lib\auth.ts:79:20)
+    at async withAuthedDb (lib\authed-db.ts:8:16)
+    at async GET (app\api\reports\components\table-config\route.ts:692:21)
+  77 |   }
+  78 |
+> 79 |   const { rows } = await pool.query(
+     |                    ^
+  80 |     `
+  81 |     SELECT sis_user_id, email, display_name, is_active, is_admin
+  82 |     FROM auth."user" {
+  code: 'ECONNREFUSED'
+}
+ GET /api/reports/components/table-config?report_id=7199894f-31dd-4027-9afd-91b4085d521c&report_component_id=a0fbcb53-aa3e-4730-904f-5e1feaf38675 500 in 206ms (compile: 16ms, render: 190ms)
+User settings GET error: AggregateError: 
+    at async requireAuth (lib\auth.ts:79:20)
+    at async withAuthedDb (lib\authed-db.ts:8:16)
+    at async GET (app\api\user-settings\route.ts:24:21)
+  77 |   }
+  78 |
+> 79 |   const { rows } = await pool.query(
+     |                    ^
+  80 |     `
+  81 |     SELECT sis_user_id, email, display_name, is_active, is_admin
+  82 |     FROM auth."user" {
+  code: 'ECONNREFUSED'
+}
+ GET /api/user-settings 500 in 430ms (compile: 21ms, render: 409ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 200 in 1185ms (compile: 454ms, render: 731ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 200 in 1187ms (compile: 386ms, render: 802ms)
+ GET /reports/2935706c-ca7b-4d20-abab-dee1b529c0f2/components/48a900bd-886a-4a19-8b79-be5804c87b55/edit 500 in 686ms (compile: 5ms, render: 681ms)
+ GET /reports/7199894f-31dd-4027-9afd-91b4085d521c/components/a0fbcb53-aa3e-4730-904f-5e1feaf38675/edit?academic_year=2025&program_code=ATTE 500 in 688ms (compile: 39ms, render: 649ms)
+^C^C

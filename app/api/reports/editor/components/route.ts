@@ -25,7 +25,6 @@ type AvailableComponentRow = {
   component_code: string;
   name: string | null;
   description: string | null;
-  component_settings: unknown;
   spec: unknown;
 };
 
@@ -108,26 +107,6 @@ async function resolveReport(db: Queryable, reportRef: string): Promise<ReportRe
   return row;
 }
 
-async function getComponentsSettingsColumn(db: Queryable): Promise<"default_settings" | "settings"> {
-  const { rows } = await db.query<{ column_name: string }>(
-    `
-    SELECT column_name
-    FROM information_schema.columns
-    WHERE table_schema = 'meta'
-      AND table_name = 'components'
-      AND column_name IN ('default_settings', 'settings')
-    `
-  );
-  const names = new Set(rows.map((row) => String(row.column_name)));
-  if (names.has("default_settings")) {
-    return "default_settings";
-  }
-  if (names.has("settings")) {
-    return "settings";
-  }
-  throw new HttpError(500, { error: 'meta.components missing "default_settings" (or legacy "settings")' });
-}
-
 async function getReportComponentRows(db: Queryable, reportId: string): Promise<ReportComponentRow[]> {
   const { rows } = await db.query<ReportComponentRow>(
     `
@@ -175,26 +154,6 @@ async function getAvailableComponents(
     name: row.name ?? null,
     description: row.description ?? null,
   }));
-}
-
-async function getNextComponentOrder(db: Queryable, reportId: string): Promise<number> {
-  const { rows } = await db.query<{ max_order: number }>(
-    `
-    SELECT COALESCE(MAX(
-      CASE
-        WHEN (settings->>'component_order') ~ '^-?\\d+$'
-        THEN (settings->>'component_order')::int
-        ELSE 0
-      END
-    ), 0) AS max_order
-    FROM meta.report_components
-    WHERE report_id = $1
-      AND COALESCE(is_active, true) = true
-    `,
-    [reportId]
-  );
-  const maxOrder = Number(rows[0]?.max_order ?? 0);
-  return Number.isFinite(maxOrder) ? maxOrder + 1 : 1;
 }
 
 export async function GET(request: Request) {
@@ -246,11 +205,14 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       report_id?: unknown;
       component_code?: unknown;
+      base_dataset_key?: unknown;
       source_schema?: unknown;
     };
 
     const reportRef = String(body.report_id ?? "").trim();
     const componentCode = assertSafeComponentCode(String(body.component_code ?? ""));
+    const baseDatasetKeyRaw = String(body.base_dataset_key ?? "").trim();
+    const baseDatasetKey = baseDatasetKeyRaw ? assertSafeIdentifier(baseDatasetKeyRaw, "base_dataset_key") : null;
     const sourceSchemaRaw = String(body.source_schema ?? "").trim();
     const sourceSchema = sourceSchemaRaw ? assertSafeIdentifier(sourceSchemaRaw, "source_schema") : null;
 
@@ -260,12 +222,10 @@ export async function POST(request: Request) {
       }
 
       const report = await resolveReport(db, reportRef);
-      const settingsColumn = await getComponentsSettingsColumn(db);
-      const nextOrder = await getNextComponentOrder(db, report.report_id);
 
       const { rows } = await db.query<AvailableComponentRow>(
         `
-        SELECT component_code, name, description, ${settingsColumn} AS component_settings, spec
+        SELECT component_code, name, description, spec
         FROM meta.components
         WHERE component_code = $1
           AND COALESCE(is_active, true) = true
@@ -278,16 +238,32 @@ export async function POST(request: Request) {
         throw new HttpError(404, { error: `Component "${componentCode}" not found` });
       }
 
-      const templateSettings = parseJsonObject(
-        template.component_settings,
-        'meta.components.default_settings (or legacy "settings")'
-      );
-      const nextSettings: JsonObject = {
-        ...templateSettings,
-        component_order: nextOrder,
-      };
+      const nextSettings: JsonObject = {};
 
-      const nextSpec = parseJsonObject(template.spec, "meta.components.spec");
+      const templateSpec = parseJsonObject(template.spec, "meta.components.spec");
+      const nextSpec: JsonObject = { ...templateSpec };
+
+      if (componentCode === "table" || componentCode === "conditional_bar") {
+        const hasSources = Array.isArray(nextSpec.sources) && nextSpec.sources.length > 0;
+        if (!hasSources) {
+          if (!baseDatasetKey) {
+            throw new HttpError(400, {
+              error:
+                `Component "${componentCode}" template has no sources[]. Provide base_dataset_key when creating it.`,
+            });
+          }
+          nextSpec.sources = [
+            {
+              dataset_key: baseDatasetKey,
+              is_base: true,
+              ...(sourceSchema ? { source_schema: sourceSchema } : {}),
+            },
+          ];
+          if (!Array.isArray(nextSpec.select)) {
+            nextSpec.select = [];
+          }
+        }
+      }
 
       if ((componentCode === "table" || componentCode === "conditional_bar") && sourceSchema) {
         nextSettings.source_schema = sourceSchema;

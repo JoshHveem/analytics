@@ -565,14 +565,38 @@ function sanitizeColumnTypes(raw: unknown, selectedKeys: Set<string>): JsonObjec
             .filter((clause): clause is JsonObject => isObjectRecord(clause))
             .map((clause) => {
               const field = String(clause.field ?? "").trim();
-              const op = String(clause.op ?? "").trim().toLowerCase() === "neq" ? "neq" : "eq";
+              const opRaw = String(clause.op ?? "").trim().toLowerCase();
+              const op: "eq" | "neq" | "lt" | "gt" | "lte" | "gte" =
+                opRaw === "neq"
+                  ? "neq"
+                  : opRaw === "lt"
+                    ? "lt"
+                    : opRaw === "gt"
+                      ? "gt"
+                      : opRaw === "lte"
+                        ? "lte"
+                        : opRaw === "gte"
+                          ? "gte"
+                          : "eq";
               const value = String(clause.value ?? "");
+              const valueFieldRaw = String(clause.value_field ?? "").trim();
+              const valueField = selectedKeys.has(valueFieldRaw) ? valueFieldRaw : undefined;
               if (!field || !selectedKeys.has(field)) {
                 return null;
               }
-              return { field, op, value };
+              return { field, op, value, ...(valueField ? { value_field: valueField } : {}) };
             })
-            .filter((clause): clause is { field: string; op: "eq" | "neq"; value: string } => clause !== null);
+            .filter(
+              (
+                clause
+              ): clause is {
+                field: string;
+                op: "eq" | "neq" | "lt" | "gt" | "lte" | "gte";
+                value: string;
+                value_field?: string;
+              } =>
+                clause !== null
+            );
           if (all.length === 0) {
             return null;
           }
@@ -588,7 +612,12 @@ function sanitizeColumnTypes(raw: unknown, selectedKeys: Set<string>): JsonObjec
           ): item is {
             include: boolean;
             color?: string;
-            all: Array<{ field: string; op: "eq" | "neq"; value: string }>;
+            all: Array<{
+              field: string;
+              op: "eq" | "neq" | "lt" | "gt" | "lte" | "gte";
+              value: string;
+              value_field?: string;
+            }>;
           } => item !== null
         );
 
